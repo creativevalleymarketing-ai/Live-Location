@@ -11,7 +11,7 @@
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Pyidaungsu:wght@400;700&family=Inter:wght@400;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Pyidaungsu:wght@400;700&family=Inter:wght@400;600;700&family=Pacifico&display=swap');
         body { font-family: 'Pyidaungsu', 'Inter', sans-serif; touch-action: manipulation; }
         #map { height: 100%; width: 100%; border-radius: 1rem; z-index: 1; }
         .icon-btn.active {
@@ -29,9 +29,36 @@
             70% { box-shadow: 0 0 0 12px rgba(236, 72, 153, 0); }
             100% { box-shadow: 0 0 0 0 rgba(236, 72, 153, 0); }
         }
+
+        /* Floating Hearts Animation for Mee Mee */
+        .heart-particle {
+            position: fixed;
+            bottom: -50px;
+            font-size: 2rem;
+            user-select: none;
+            pointer-events: none;
+            z-index: 3000;
+            animation: floatUp 4s linear forwards;
+        }
+        @keyframes floatUp {
+            0% {
+                transform: translateY(0) scale(0.8) rotate(0deg);
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.9;
+            }
+            100% {
+                transform: translateY(-105vh) scale(1.4) rotate(360deg);
+                opacity: 0;
+            }
+        }
+        .love-font {
+            font-family: 'Pacifico', cursive, 'Pyidaungsu', sans-serif;
+        }
     </style>
 </head>
-<body class="bg-pink-50 text-gray-800 min-h-screen flex flex-col justify-between antialiased">
+<body class="bg-pink-50 text-gray-800 min-h-screen flex flex-col justify-between antialiased relative overflow-x-hidden">
 
     <!-- Top Navigation Bar -->
     <nav class="bg-white/90 backdrop-blur-md border-b border-pink-100 sticky top-0 z-50 px-4 py-3 shadow-sm">
@@ -42,6 +69,10 @@
             </div>
             
             <div class="flex items-center gap-2">
+                <!-- Mee Mee Replay Heart Effect Button (Only visible if logged in as Mee Mee) -->
+                <button id="replayHeartBtn" onclick="triggerMeeMeeLoveEffect()" class="hidden bg-pink-100 hover:bg-pink-200 text-pink-700 p-2 rounded-full text-sm border border-pink-300 transition shadow-sm" title="Replay Love Animation">
+                    💖
+                </button>
                 <!-- Flag-based Language Switcher -->
                 <button onclick="toggleLanguage()" id="langBtn" class="bg-pink-50 hover:bg-pink-100 text-xl px-2.5 py-1 rounded-full border border-pink-200 shadow-sm transition">
                     🇲🇲
@@ -63,6 +94,29 @@
         </div>
         <button onclick="dismissAlert()" class="text-white bg-pink-800 hover:bg-pink-900 px-2.5 py-1 rounded-xl text-xs font-bold">OK</button>
     </div>
+
+    <!-- MEE MEE SPECIAL "LOVE YOU" MODAL OVERLAY -->
+    <div id="meeMeeLoveModal" class="hidden fixed inset-0 bg-pink-950/60 backdrop-blur-md z-[2500] flex items-center justify-center p-4">
+        <div class="bg-gradient-to-b from-white via-pink-50 to-pink-100 p-6 rounded-3xl shadow-2xl border-2 border-pink-300 text-center max-w-xs w-full relative transform transition-all scale-100 animate-bounce-short">
+            <button onclick="closeLoveModal()" class="absolute top-3 right-3 text-pink-400 hover:text-pink-600 font-bold text-lg"><i class="fa-solid fa-xmark"></i></button>
+            
+            <div class="text-6xl my-2 animate-pulse">💖</div>
+            <h2 class="text-3xl font-extrabold text-pink-600 love-font tracking-wide mb-1">Love You ❤️</h2>
+            <p class="text-sm font-bold text-pink-800 mb-4" id="meeMeeGreeting">မင်္ဂလာပါ Mee Mee!</p>
+
+            <div class="flex items-center justify-center gap-2">
+                <button onclick="triggerMeeMeeLoveEffect()" class="bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white text-xs font-bold px-4 py-2.5 rounded-2xl shadow-lg transition flex items-center gap-1.5">
+                    ✨ <span data-i18n="btnReplayHearts">အသည်းများပြန်လွှတ်မည်</span>
+                </button>
+                <button onclick="closeLoveModal()" class="bg-white border border-pink-200 text-pink-700 text-xs font-bold px-4 py-2.5 rounded-2xl shadow-sm hover:bg-pink-50 transition">
+                    OK
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Container for floating hearts elements -->
+    <div id="heartsContainer" class="pointer-events-none fixed inset-0 z-[2400] overflow-hidden"></div>
 
     <!-- MAIN CONTAINER -->
     <main class="max-w-md w-full mx-auto p-4 flex-1 flex flex-col justify-center">
@@ -293,7 +347,8 @@
                 errUserNotFound: "အကောင့်မရှိသေးပါ။ ကျေးဇူးပြု၍ Sign Up လုပ်ပါ။",
                 alertTitle: "နီးကပ်မှု သတိပေးချက် ⚠️",
                 alertMeetSoon: "အနီးနားသို့ သိပ်မကြာခင် တွေ့ဆုံတော့မည်ဖြစ်သည်!",
-                targetUser: "အကွာအဝေး:"
+                targetUser: "အကွာအဝေး:",
+                btnReplayHearts: "အသည်းများပြန်လွှတ်မည်"
             },
             en: {
                 logout: "Logout",
@@ -324,9 +379,17 @@
                 errUserNotFound: "Account does not exist. Please Sign Up.",
                 alertTitle: "Proximity Alert ⚠️",
                 alertMeetSoon: "You are about to meet soon!",
-                targetUser: "Target:"
+                targetUser: "Target:",
+                btnReplayHearts: "Replay Hearts"
             }
         };
+
+        // Helper to check if user is Mee Mee or May Thu Hlaing
+        function isMeeMeeUser(userObj) {
+            if (!userObj || !userObj.username) return false;
+            const name = userObj.username.trim().toLowerCase();
+            return name === 'mee mee' || name === 'meemee' || name === 'may thu hlaing' || name === 'maythuhlaing';
+        }
 
         // Flag Language Switcher
         window.toggleLanguage = function() {
@@ -382,14 +445,15 @@
         // Sign Up & Login Authentication Logic with Firestore
         window.handleAuthSubmit = async function(e) {
             e.preventDefault();
-            const username = document.getElementById('inputUsername').value.trim().toLowerCase();
+            const username = document.getElementById('inputUsername').value.trim();
             const password = document.getElementById('inputPassword').value.trim();
             const errEl = document.getElementById('authError');
             errEl.classList.add('hidden');
 
             if (!username || !password) return;
 
-            const userRef = doc(db, "users", username);
+            const docKey = username.toLowerCase();
+            const userRef = doc(db, "users", docKey);
 
             if (authMode === 'signup') {
                 // Check uniqueness in Firestore
@@ -435,12 +499,13 @@
             }
         };
 
-        // Navigation Control
+        // Navigation Control & Mee Mee Love Feature Trigger
         function showMapScreen() {
             document.getElementById('authScreen').classList.add('hidden');
             document.getElementById('mapScreen').classList.remove('hidden');
             document.getElementById('logoutBtn').classList.remove('hidden');
 
+            // Dynamic Display Name handling (Rainny & May Thu Hlaing / Mee Mee support)
             document.getElementById('displayUserName').innerText = currentUser.username;
             document.getElementById('displayUserRole').innerText = currentUser.role;
             document.getElementById('userIconDisplay').innerText = roleIcons[currentUser.role] || '👦';
@@ -451,7 +516,51 @@
             if (localStorage.getItem('isSharing') === 'true') {
                 startSharing();
             }
+
+            // MEE MEE / MAY THU HLAING SPECIAL FEATURE ACTIVATION
+            if (isMeeMeeUser(currentUser)) {
+                document.getElementById('replayHeartBtn').classList.remove('hidden');
+                triggerMeeMeeLoveEffect();
+            } else {
+                document.getElementById('replayHeartBtn').classList.add('hidden');
+            }
         }
+
+        // Animated Hearts & Love You Modal Sequence for Mee Mee
+        window.triggerMeeMeeLoveEffect = function() {
+            // Show Sweet Popup Modal
+            const greetingEl = document.getElementById('meeMeeGreeting');
+            if (greetingEl && currentUser) {
+                greetingEl.innerText = `မင်္ဂလာပါ ${currentUser.username}! ❤️`;
+            }
+            document.getElementById('meeMeeLoveModal').classList.remove('hidden');
+
+            // Generate Floating Hearts Animation
+            const container = document.getElementById('heartsContainer');
+            container.innerHTML = ''; // clear existing
+            const heartEmojis = ['💖', '❤️', '💕', '💗', '💓', '✨', '🌸'];
+
+            for (let i = 0; i < 35; i++) {
+                setTimeout(() => {
+                    const heart = document.createElement('div');
+                    heart.className = 'heart-particle';
+                    heart.innerText = heartEmojis[Math.floor(Math.random() * heartEmojis.length)];
+                    heart.style.left = Math.random() * 90 + 5 + 'vw';
+                    heart.style.animationDuration = (Math.random() * 2.5 + 2.5) + 's';
+                    heart.style.fontSize = (Math.random() * 1.5 + 1.2) + 'rem';
+                    container.appendChild(heart);
+
+                    // Clean up after animation ends
+                    setTimeout(() => {
+                        heart.remove();
+                    }, 5000);
+                }, i * 120);
+            }
+        };
+
+        window.closeLoveModal = function() {
+            document.getElementById('meeMeeLoveModal').classList.add('hidden');
+        };
 
         window.logout = function() {
             stopSharing();
@@ -461,6 +570,7 @@
 
             document.getElementById('mapScreen').classList.add('hidden');
             document.getElementById('logoutBtn').classList.add('hidden');
+            document.getElementById('replayHeartBtn').classList.add('hidden');
             document.getElementById('authScreen').classList.remove('hidden');
         };
 
@@ -491,7 +601,7 @@
             }
         };
 
-        // OpenStreetMap Nominatim Geocoding Search (Google Maps style search)
+        // OpenStreetMap Nominatim Geocoding Search (Google Maps style search - Myanmar focused)
         window.searchLocation = async function() {
             const query = document.getElementById('searchPlaceInput').value.trim();
             const resultsBox = document.getElementById('searchResults');
@@ -502,7 +612,7 @@
             }
 
             try {
-                const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`);
+                const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&countrycodes=mm&q=${encodeURIComponent(query)}`);
                 const data = await res.json();
 
                 if (data && data.length > 0) {
@@ -622,7 +732,7 @@
 
                     if (data.latitude && data.longitude) {
                         const iconSymbol = roleIcons[data.role] || '👦';
-                        const isSelf = currentUser && id === currentUser.username;
+                        const isSelf = currentUser && id === currentUser.username.toLowerCase();
 
                         // Check Proximity if it's not self and self is currently sharing
                         if (!isSelf && myCurrentPos) {
@@ -731,7 +841,7 @@
                 myCurrentPos = { lat, lon };
 
                 // Push Live Coordinates to Firestore
-                await setDoc(doc(db, "locations", currentUser.username), {
+                await setDoc(doc(db, "locations", currentUser.username.toLowerCase()), {
                     username: currentUser.username,
                     role: currentUser.role,
                     latitude: lat,
@@ -761,7 +871,7 @@
             }
 
             if (currentUser) {
-                deleteDoc(doc(db, "locations", currentUser.username));
+                deleteDoc(doc(db, "locations", currentUser.username.toLowerCase()));
             }
 
             myCurrentPos = null;
