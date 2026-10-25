@@ -8,6 +8,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- Leaflet Routing Machine CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
     <style>
@@ -56,6 +58,10 @@
         .love-font {
             font-family: 'Pacifico', cursive, 'Pyidaungsu', sans-serif;
         }
+        /* Hide default Leaflet routing instructions box for clean UI */
+        .leaflet-routing-container {
+            display: none !important;
+        }
     </style>
 </head>
 <body class="bg-pink-50 text-gray-800 min-h-screen flex flex-col justify-between antialiased relative overflow-x-hidden">
@@ -73,7 +79,7 @@
                 <button id="replayHeartBtn" onclick="triggerMeeMeeLoveEffect()" class="hidden bg-pink-100 hover:bg-pink-200 text-pink-700 p-2 rounded-full text-sm border border-pink-300 transition shadow-sm" title="Replay Love Animation">
                     💖
                 </button>
-                <!-- Flag-based Language Switcher (MM Ver -> Flag is EN '🇬🇧', EN Ver -> Flag is MM '🇲🇲') -->
+                <!-- Flag-based Language Switcher -->
                 <button onclick="toggleLanguage()" id="langBtn" class="bg-pink-50 hover:bg-pink-100 text-xl px-2.5 py-1 rounded-full border border-pink-200 shadow-sm transition">
                     🇬🇧
                 </button>
@@ -188,7 +194,6 @@
                     <div id="userIconDisplay" class="w-10 h-10 rounded-2xl bg-pink-100 flex items-center justify-center text-2xl border border-pink-200 shadow-inner">👦</div>
                     <div>
                         <h3 id="displayUserName" class="font-bold text-sm text-gray-800">User</h3>
-                        <!-- Love You Text instead of role or alongside profile for Mee Mee -->
                         <p id="displayUserRole" class="text-xs text-pink-600 font-medium">Boy</p>
                     </div>
                 </div>
@@ -266,6 +271,8 @@
 
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Leaflet Routing Machine JS -->
+    <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
 
     <!-- Firebase SDK (Modular v10) -->
     <script type="module">
@@ -292,7 +299,7 @@
         let watchId = null;
         let map = null;
         let markers = {};
-        let currentPolyline = null;
+        let routingControl = null; // Leaflet Routing Control instance
         let myCurrentPos = null;
         let alertedUsers = new Set();
 
@@ -502,7 +509,6 @@
 
             document.getElementById('displayUserName').innerText = currentUser.username;
             
-            // If logged in as Mee Mee, display "Love You ❤️" instead of role subtitle
             if (isMeeMeeUser(currentUser)) {
                 document.getElementById('displayUserRole').innerText = "Love You ❤️";
                 document.getElementById('displayUserRole').className = "text-xs text-pink-600 font-bold love-font";
@@ -522,7 +528,6 @@
 
             if (isMeeMeeUser(currentUser)) {
                 document.getElementById('replayHeartBtn').classList.remove('hidden');
-                // Automatically trigger floating hearts on login without pop up modal
                 triggerMeeMeeLoveEffect();
             } else {
                 document.getElementById('replayHeartBtn').classList.add('hidden');
@@ -635,31 +640,57 @@
             fetchWeather(lat, lon);
 
             if (myCurrentPos) {
-                drawRouteBetween(myCurrentPos.lat, myCurrentPos.lon, lat, lon, shortName);
+                drawRoutingBetween(myCurrentPos.lat, myCurrentPos.lon, lat, lon, shortName);
             }
         };
 
-        function drawRouteBetween(fromLat, fromLon, toLat, toLon, targetName) {
-            if (currentPolyline) {
-                map.removeLayer(currentPolyline);
+        // Google Maps style routing using Leaflet Routing Machine (OSRM backend)
+        function drawRoutingBetween(fromLat, fromLon, toLat, toLon, targetName) {
+            if (routingControl) {
+                map.removeControl(routingControl);
+                routingControl = null;
             }
 
-            const latlngs = [
-                [fromLat, fromLon],
-                [toLat, toLon]
-            ];
+            routingControl = L.Routing.control({
+                waypoints: [
+                    L.latLng(fromLat, fromLon),
+                    L.latLng(toLat, toLon)
+                ],
+                router: new L.Routing.osrmv1({
+                    serviceUrl: 'https://router.project-osrm.org/route/v1'
+                }),
+                lineOptions: {
+                    styles: [{ color: '#ec4899', weight: 5, opacity: 0.8 }]
+                },
+                addWaypoints: false,
+                draggableWaypoints: false,
+                fitSelectedRoutes: true,
+                show: false
+            }).addTo(map);
 
-            currentPolyline = L.polyline(latlngs, { color: '#ec4899', weight: 4, dashArray: '8, 8' }).addTo(map);
-            map.fitBounds(currentPolyline.getBounds(), { padding: [50, 50] });
+            // Listen to route calculation results to get exact road distance and ETA
+            routingControl.on('routesfound', function(e) {
+                const routes = e.routes;
+                if (routes && routes.length > 0) {
+                    const summary = routes[0].summary;
+                    const distKm = (summary.totalDistance / 1000).toFixed(2);
+                    const etaMinutes = Math.max(1, Math.round(summary.totalTime / 60));
 
-            const distKm = calculateHaversineDistance(fromLat, fromLon, toLat, toLon);
-            const etaMinutes = Math.max(1, Math.round((distKm / 30) * 60));
-
-            document.getElementById('routeTargetName').innerText = targetName;
-            document.getElementById('routeDistance').innerText = `${distKm.toFixed(2)} km`;
-            document.getElementById('routeETA').innerText = `${etaMinutes} min`;
-            document.getElementById('routeInfoCard').classList.remove('hidden');
+                    document.getElementById('routeTargetName').innerText = targetName;
+                    document.getElementById('routeDistance').innerText = `${distKm} km`;
+                    document.getElementById('routeETA').innerText = `${etaMinutes} min`;
+                    document.getElementById('routeInfoCard').classList.remove('hidden');
+                }
+            });
         }
+
+        window.clearRoute = function() {
+            if (routingControl) {
+                map.removeControl(routingControl);
+                routingControl = null;
+            }
+            document.getElementById('routeInfoCard').classList.add('hidden');
+        };
 
         async function fetchWeather(lat, lon) {
             try {
@@ -799,15 +830,7 @@
                 map.flyTo([targetLat, targetLon], 16);
                 return;
             }
-            drawRouteBetween(myCurrentPos.lat, myCurrentPos.lon, targetLat, targetLon, targetName);
-        };
-
-        window.clearRoute = function() {
-            if (currentPolyline) {
-                map.removeLayer(currentPolyline);
-                currentPolyline = null;
-            }
-            document.getElementById('routeInfoCard').classList.add('hidden');
+            drawRoutingBetween(myCurrentPos.lat, myCurrentPos.lon, targetLat, targetLon, targetName);
         };
 
         function startSharing() {
