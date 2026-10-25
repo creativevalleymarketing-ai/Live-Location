@@ -69,11 +69,11 @@
             </div>
             
             <div class="flex items-center gap-2">
-                <!-- Mee Mee Replay Heart Effect Button (Only visible if logged in as Mee Mee) -->
+                <!-- Mee Mee Replay Heart Effect Button (Only visible if logged in as Mee Mee or May Thu Hlaing) -->
                 <button id="replayHeartBtn" onclick="triggerMeeMeeLoveEffect()" class="hidden bg-pink-100 hover:bg-pink-200 text-pink-700 p-2 rounded-full text-sm border border-pink-300 transition shadow-sm" title="Replay Love Animation">
                     💖
                 </button>
-                <!-- Flag-based Language Switcher (MM Ver -> Flag is EN, EN Ver -> Flag is MM) -->
+                <!-- Flag-based Language Switcher (MM Ver -> Flag is EN '🇬🇧', EN Ver -> Flag is MM '🇲🇲') -->
                 <button onclick="toggleLanguage()" id="langBtn" class="bg-pink-50 hover:bg-pink-100 text-xl px-2.5 py-1 rounded-full border border-pink-200 shadow-sm transition">
                     🇬🇧
                 </button>
@@ -93,26 +93,6 @@
             <p id="alertMessage" class="text-xs font-semibold">သိပ်မကြာခင်တွေ့ဆုံတော့မည်ဖြစ်သည်!</p>
         </div>
         <button onclick="dismissAlert()" class="text-white bg-pink-800 hover:bg-pink-900 px-2.5 py-1 rounded-xl text-xs font-bold">OK</button>
-    </div>
-
-    <!-- MEE MEE SPECIAL "LOVE YOU" MODAL OVERLAY -->
-    <div id="meeMeeLoveModal" class="hidden fixed inset-0 bg-pink-950/60 backdrop-blur-md z-[2500] flex items-center justify-center p-4">
-        <div class="bg-gradient-to-b from-white via-pink-50 to-pink-100 p-6 rounded-3xl shadow-2xl border-2 border-pink-300 text-center max-w-xs w-full relative transform transition-all scale-100 animate-bounce-short">
-            <button onclick="closeLoveModal()" class="absolute top-3 right-3 text-pink-400 hover:text-pink-600 font-bold text-lg"><i class="fa-solid fa-xmark"></i></button>
-            
-            <div class="text-6xl my-2 animate-pulse">💖</div>
-            <h2 class="text-3xl font-extrabold text-pink-600 love-font tracking-wide mb-1">Love You ❤️</h2>
-            <p class="text-sm font-bold text-pink-800 mb-4" id="meeMeeGreeting">မင်္ဂလာပါ Mee Mee!</p>
-
-            <div class="flex items-center justify-center gap-2">
-                <button onclick="triggerMeeMeeLoveEffect()" class="bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white text-xs font-bold px-4 py-2.5 rounded-2xl shadow-lg transition flex items-center gap-1.5">
-                    ✨ <span data-i18n="btnReplayHearts">အသည်းများပြန်လွှတ်မည်</span>
-                </button>
-                <button onclick="closeLoveModal()" class="bg-white border border-pink-200 text-pink-700 text-xs font-bold px-4 py-2.5 rounded-2xl shadow-sm hover:bg-pink-50 transition">
-                    OK
-                </button>
-            </div>
-        </div>
     </div>
 
     <!-- Container for floating hearts elements -->
@@ -208,6 +188,7 @@
                     <div id="userIconDisplay" class="w-10 h-10 rounded-2xl bg-pink-100 flex items-center justify-center text-2xl border border-pink-200 shadow-inner">👦</div>
                     <div>
                         <h3 id="displayUserName" class="font-bold text-sm text-gray-800">User</h3>
+                        <!-- Love You Text instead of role or alongside profile for Mee Mee -->
                         <p id="displayUserRole" class="text-xs text-pink-600 font-medium">Boy</p>
                     </div>
                 </div>
@@ -382,7 +363,6 @@
             }
         };
 
-        // Helper to check if user is Mee Mee (May Thu Hlaing maps to Mee Mee)
         function isMeeMeeUser(userObj) {
             if (!userObj || !userObj.username) return false;
             const name = userObj.username.trim().toLowerCase();
@@ -402,7 +382,6 @@
                     el.innerText = i18n[currentLang][key];
                 }
             });
-            // MM Ver displays EN flag ('🇬🇧'), EN Ver displays MM flag ('🇲🇲')
             document.getElementById('langBtn').innerText = currentLang === 'my' ? '🇬🇧' : '🇲🇲';
             updateUIState();
         }
@@ -461,7 +440,6 @@
 
             if (!rawUsername || !password) return;
 
-            // May Thu Hlaing maps to Mee Mee, Rainny remains Rainny
             let effectiveUsername = rawUsername;
             const lowerRaw = rawUsername.toLowerCase();
             if (lowerRaw === 'may thu hlaing' || lowerRaw === 'maythuhlaing') {
@@ -523,7 +501,16 @@
             document.getElementById('logoutBtn').classList.remove('hidden');
 
             document.getElementById('displayUserName').innerText = currentUser.username;
-            document.getElementById('displayUserRole').innerText = currentUser.role;
+            
+            // If logged in as Mee Mee, display "Love You ❤️" instead of role subtitle
+            if (isMeeMeeUser(currentUser)) {
+                document.getElementById('displayUserRole').innerText = "Love You ❤️";
+                document.getElementById('displayUserRole').className = "text-xs text-pink-600 font-bold love-font";
+            } else {
+                document.getElementById('displayUserRole').innerText = currentUser.role;
+                document.getElementById('displayUserRole').className = "text-xs text-pink-600 font-medium";
+            }
+
             document.getElementById('userIconDisplay').innerText = roleIcons[currentUser.role] || '👦';
 
             initMap();
@@ -533,21 +520,16 @@
                 startSharing();
             }
 
-            // Only Mee Mee shows heart icon button
             if (isMeeMeeUser(currentUser)) {
                 document.getElementById('replayHeartBtn').classList.remove('hidden');
+                // Automatically trigger floating hearts on login without pop up modal
+                triggerMeeMeeLoveEffect();
             } else {
                 document.getElementById('replayHeartBtn').classList.add('hidden');
             }
         }
 
         window.triggerMeeMeeLoveEffect = function() {
-            const greetingEl = document.getElementById('meeMeeGreeting');
-            if (greetingEl && currentUser) {
-                greetingEl.innerText = `မင်္ဂလာပါ ${currentUser.username}! ❤️`;
-            }
-            document.getElementById('meeMeeLoveModal').classList.remove('hidden');
-
             const container = document.getElementById('heartsContainer');
             container.innerHTML = '';
             const heartEmojis = ['💖', '❤️', '💕', '💗', '💓', '✨', '🌸'];
@@ -567,10 +549,6 @@
                     }, 5000);
                 }, i * 120);
             }
-        };
-
-        window.closeLoveModal = function() {
-            document.getElementById('meeMeeLoveModal').classList.add('hidden');
         };
 
         window.logout = function() {
