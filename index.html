@@ -2,49 +2,193 @@
 <html lang="my">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Firebase Real-time Live Locator</title>
-    <!-- Tailwind CSS -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Firebase Real-time Live Location</title>
+    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Pyidaungsu&display=swap');
-        body { font-family: 'Pyidaungsu', sans-serif; }
-        #map { height: 400px; width: 100%; border-radius: 1rem; }
+        @import url('https://fonts.googleapis.com/css2?family=Pyidaungsu:wght@400;700&family=Inter:wght@400;600;700&display=swap');
+        body { 
+            font-family: 'Pyidaungsu', 'Inter', sans-serif; 
+            touch-action: manipulation;
+        }
+        #map { 
+            height: 380px; 
+            width: 100%; 
+            border-radius: 1.25rem; 
+            z-index: 1;
+        }
+        .leaflet-popup-content-wrapper {
+            border-radius: 1rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+        .user-marker-icon {
+            background-color: #db2777;
+            border: 3px solid white;
+            border-radius: 50%;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.3);
+        }
+        .self-marker-icon {
+            background-color: #2563eb;
+            border: 3px solid white;
+            border-radius: 50%;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.3);
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(37, 99, 235, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); }
+        }
     </style>
 </head>
-<body class="text-gray-800 p-4 max-w-md mx-auto pb-10 bg-pink-100">
-    
-    <!-- App Header -->
-    <div class="flex items-center justify-between mb-4 bg-white p-3 rounded-2xl shadow-sm border border-pink-200">
-        <h1 class="font-bold text-lg text-pink-700">📍 Firebase Live Locator</h1>
-        <button onclick="changeUserName()" id="usernameBtn" class="text-xs bg-pink-200 text-pink-800 px-2.5 py-1 rounded-full font-bold">User</button>
-    </div>
+<body class="bg-pink-100 text-gray-800 antialiased min-h-screen flex flex-col justify-between">
 
-    <!-- Map Section -->
-    <div class="bg-white p-4 rounded-2xl shadow-md mb-4 border border-pink-200">
-        <h2 class="font-bold text-md mb-2 text-gray-700">🗺️ Live Interactive Map</h2>
-        <div class="mb-3 overflow-hidden shadow-inner">
-            <div id="map"></div>
-        </div>
-
-        <div id="statusBox" class="bg-pink-100 p-3 rounded-xl mb-3 text-sm">
-            <p id="status" class="text-pink-900 font-bold">Status: မစတင်ရသေးပါ</p>
-            <p id="coords" class="text-xs text-gray-600 mt-1">Lat: -, Lon: -</p>
-        </div>
-
-        <button onclick="toggleLocationSharing()" id="shareBtn" class="w-full bg-pink-600 hover:bg-pink-700 text-white font-medium py-2.5 rounded-xl transition duration-200">
-            Location စတင်မျှဝေမည်
+    <!-- Language Toggle Bar (Floating Header) -->
+    <div class="fixed top-3 right-3 z-[1000]">
+        <button onclick="toggleLanguage()" class="bg-white/90 backdrop-blur-md shadow-md hover:bg-white text-pink-700 font-bold px-3 py-1.5 rounded-full border border-pink-200 text-xs flex items-center gap-1.5 transition">
+            <i class="fa-solid fa-globe"></i>
+            <span id="langToggleBtn">MM | EN</span>
         </button>
     </div>
 
-    <!-- Active Sharers List -->
-    <div class="bg-white p-4 rounded-2xl shadow-md border border-pink-200">
-        <h2 class="font-bold text-md mb-2 text-gray-700">👥 Active Users on Map</h2>
-        <div id="userList" class="space-y-2 max-h-40 overflow-y-auto">
-            <p class="text-xs text-gray-400 text-center py-2">ချိတ်ဆက်နေသူများကို ရှာဖွေနေသည်...</p>
+    <!-- ========================================== -->
+    <!-- SCREEN 1: USER LOGIN / ACCESS SCREEN      -->
+    <!-- ========================================== -->
+    <div id="loginScreen" class="min-h-screen flex items-center justify-center p-4 w-full">
+        <div class="bg-white rounded-3xl shadow-xl border border-pink-200 p-6 max-w-md w-full space-y-6 transform transition-all">
+            <!-- Header Banner -->
+            <div class="text-center space-y-2">
+                <div class="w-16 h-16 bg-pink-600 text-white rounded-2xl flex items-center justify-center text-3xl mx-auto shadow-lg shadow-pink-200">
+                    📍
+                </div>
+                <h1 data-i18n="appTitle" class="text-2xl font-bold text-pink-700">Live Location Sharing</h1>
+                <p data-i18n="appSubtitle" class="text-xs text-gray-500">အကောင့်ဝင်ရောက်ပြီး တည်နေရာ စတင်မျှဝေပါ</p>
+            </div>
+
+            <!-- Login Form -->
+            <form id="loginForm" onsubmit="handleLogin(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1" for="inputName">
+                        <span data-i18n="labelName">အမည် (Display Name)</span> <span class="text-pink-600">*</span>
+                    </label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
+                            <i class="fa-solid fa-user text-sm"></i>
+                        </span>
+                        <input type="text" id="inputName" required placeholder="ဥပမာ - မောင်မောင်" 
+                            class="w-full pl-9 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pink-500 focus:bg-white transition">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1" for="inputPassword">
+                        <span data-i18n="labelPassword">လျှို့ဝှက်နံပါတ် (Password)</span> <span class="text-pink-600">*</span>
+                    </label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
+                            <i class="fa-solid fa-lock text-sm"></i>
+                        </span>
+                        <input type="password" id="inputPassword" required placeholder="••••••••" 
+                            class="w-full pl-9 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pink-500 focus:bg-white transition">
+                    </div>
+                </div>
+
+                <!-- Avatar Selection (Male, Female, Taxi, Bus, Car, Bike) -->
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-2">
+                        <span data-i18n="labelAvatar">Avatar ရွေးချယ်ပါ</span>
+                    </label>
+                    <div class="grid grid-cols-6 gap-1.5">
+                        <button type="button" onclick="selectAvatar('👨')" class="avatar-btn border-2 border-pink-500 bg-pink-50 text-xl p-2 rounded-xl text-center transition">👨</button>
+                        <button type="button" onclick="selectAvatar('👩')" class="avatar-btn border-2 border-transparent hover:border-pink-300 bg-gray-50 text-xl p-2 rounded-xl text-center transition">👩</button>
+                        <button type="button" onclick="selectAvatar('🚕')" class="avatar-btn border-2 border-transparent hover:border-pink-300 bg-gray-50 text-xl p-2 rounded-xl text-center transition">🚕</button>
+                        <button type="button" onclick="selectAvatar('🚌')" class="avatar-btn border-2 border-transparent hover:border-pink-300 bg-gray-50 text-xl p-2 rounded-xl text-center transition">🚌</button>
+                        <button type="button" onclick="selectAvatar('🚗')" class="avatar-btn border-2 border-transparent hover:border-pink-300 bg-gray-50 text-xl p-2 rounded-xl text-center transition">🚗</button>
+                        <button type="button" onclick="selectAvatar('🏍️')" class="avatar-btn border-2 border-transparent hover:border-pink-300 bg-gray-50 text-xl p-2 rounded-xl text-center transition">🏍️</button>
+                    </div>
+                </div>
+
+                <!-- Submit Button -->
+                <button type="submit" class="w-full bg-pink-600 hover:bg-pink-700 active:scale-[0.99] text-white font-bold py-3.5 rounded-xl shadow-lg shadow-pink-200 transition duration-200 flex items-center justify-center gap-2 text-sm mt-2">
+                    <i class="fa-solid fa-arrow-right-to-bracket"></i> <span data-i18n="btnContinue">စတင်မည် (Continue to Map)</span>
+                </button>
+            </form>
         </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- SCREEN 2: LIVE LOCATION MAP SCREEN         -->
+    <!-- ========================================== -->
+    <div id="mapScreen" class="hidden min-h-screen flex-col w-full max-w-md mx-auto p-4 pb-8 space-y-4">
+        
+        <!-- App Header with Profile -->
+        <div class="flex items-center justify-between bg-white p-3.5 rounded-2xl shadow-sm border border-pink-200">
+            <div class="flex items-center space-x-2.5">
+                <span id="userAvatarDisplay" class="text-2xl bg-pink-100 p-1.5 rounded-xl">👨</span>
+                <div>
+                    <h1 id="userNameDisplay" class="font-bold text-sm text-pink-700 leading-tight">User</h1>
+                    <span id="userStatusTag" class="text-[10px] text-emerald-600 font-semibold">Online</span>
+                </div>
+            </div>
+            <button onclick="logout()" class="text-xs bg-pink-50 hover:bg-pink-100 text-pink-700 border border-pink-200 px-3 py-1.5 rounded-xl font-bold transition flex items-center gap-1">
+                <i class="fa-solid fa-right-from-bracket"></i> <span data-i18n="btnLogout">ထွက်မည်</span>
+            </button>
+        </div>
+
+        <!-- Map Section -->
+        <div class="bg-white p-4 rounded-3xl shadow-md border border-pink-200 space-y-3">
+            <div class="flex items-center justify-between px-1">
+                <h2 class="font-bold text-sm text-gray-700 flex items-center gap-1.5">
+                    <i class="fa-solid fa-map-location-dot text-pink-600"></i> <span data-i18n="mapHeader">Live Interactive Map</span>
+                </h2>
+                <span id="activeCount" class="text-[11px] font-semibold bg-pink-100 text-pink-700 px-2.5 py-0.5 rounded-full">
+                    Active: 0
+                </span>
+            </div>
+
+            <!-- Leaflet Container -->
+            <div class="overflow-hidden shadow-inner border border-gray-100 rounded-2xl relative">
+                <div id="map"></div>
+                <button onclick="reCenterSelf()" class="absolute bottom-3 right-3 bg-white/90 hover:bg-white text-gray-700 p-2 rounded-xl shadow-md z-[400] text-xs font-bold border border-gray-200 flex items-center gap-1">
+                    <i class="fa-solid fa-crosshairs text-pink-600"></i> <span data-i18n="btnMyLoc">My Location</span>
+                </button>
+            </div>
+
+            <!-- Status Panel -->
+            <div id="statusBox" class="bg-gray-50 p-3 rounded-2xl border border-gray-100 text-xs space-y-1.5">
+                <div class="flex items-center justify-between">
+                    <span data-i18n="labelStatus" class="font-bold text-gray-600">အခြေအနေ:</span>
+                    <span id="status" class="font-bold text-pink-700 bg-pink-100 px-2 py-0.5 rounded-md">ရပ်တန့်ထားသည်</span>
+                </div>
+                <div class="grid grid-cols-2 gap-2 pt-1 border-t border-gray-200/60 text-[11px] text-gray-500">
+                    <div><i class="fa-solid fa-compass text-gray-400"></i> Lat/Lon: <span id="coords" class="font-mono font-medium text-gray-700">-</span></div>
+                    <div><i class="fa-solid fa-bullseye text-gray-400"></i> <span data-i18n="labelAccuracy">တိကျမှု</span>: <span id="accuracy" class="font-mono font-medium text-gray-700">-</span></div>
+                    <div><i class="fa-solid fa-clock text-gray-400"></i> <span data-i18n="labelSync">Sync</span>: <span id="lastUpdated" class="font-mono font-medium text-gray-700">-</span></div>
+                    <div><i class="fa-solid fa-signal text-gray-400"></i> Sharing: <span id="sharingBadge" class="font-semibold text-gray-400">Off</span></div>
+                </div>
+            </div>
+
+            <!-- Location Toggle Button -->
+            <button onclick="toggleLocationSharing()" id="shareBtn" class="w-full bg-pink-600 hover:bg-pink-700 active:scale-[0.99] text-white font-bold py-3 rounded-2xl shadow-lg shadow-pink-200 transition duration-200 flex items-center justify-center gap-2 text-sm">
+                <i class="fa-solid fa-location-arrow"></i> <span id="shareBtnText" data-i18n="btnStartShare">Location စတင်မျှဝေမည်</span>
+            </button>
+        </div>
+
+        <!-- Active Users List -->
+        <div class="bg-white p-4 rounded-3xl shadow-md border border-pink-200">
+            <h2 class="font-bold text-sm text-gray-700 mb-3 flex items-center gap-2">
+                <i class="fa-solid fa-users text-pink-600"></i> <span data-i18n="activeUsersHeader">Online မိုဘိုင်း အသုံးပြုသူများ</span>
+            </h2>
+            <div id="userList" class="space-y-2 max-h-48 overflow-y-auto pr-1">
+                <p data-i18n="searchingUsers" class="text-xs text-gray-400 text-center py-4">ချိတ်ဆက်နေသူများကို ရှာဖွေနေသည်...</p>
+            </div>
+        </div>
+
     </div>
 
     <!-- Leaflet JS -->
@@ -55,119 +199,397 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFirestore, doc, setDoc, onSnapshot, collection, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        // 👉 သင့်ရဲ့ Firebase Config အချက်အလက်များကို ဤနေရာတွင် ထည့်ပါ
+        // Firebase Configuration
         const firebaseConfig = {
-    	apiKey: "AIzaSyDLG2fJ3fRtBNNO0DhhRFbZoFdDGPRExn0",
-    	authDomain: "live-location-ea2df.firebaseapp.com",
-    	projectId: "live-location-ea2df",
-    	storageBucket: "live-location-ea2df.firebasestorage.app",
-    	messagingSenderId: "891244033984",
-   	appId: "1:891244033984:web:8e5ab090301d9f002cfa25",
-	measurementId: "G-KVR7ZEFW1H"
-	};
+            apiKey: "AIzaSyDLG2fJ3fRtBNNO0DhhRFbZoFdDGPRExn0",
+            authDomain: "live-location-ea2df.firebaseapp.com",
+            projectId: "live-location-ea2df",
+            storageBucket: "live-location-ea2df.firebasestorage.app",
+            messagingSenderId: "891244033984",
+            appId: "1:891244033984:web:8e5ab090301d9f002cfa25",
+            measurementId: "G-KVR7ZEFW1H"
+        };
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // User Identity Setup
-        let userId = localStorage.getItem('fbUserId');
-        if (!userId) {
-            userId = 'user_' + Math.random().toString(36).substring(2, 9);
-            localStorage.setItem('fbUserId', userId);
-        }
-
-        let userName = localStorage.getItem('fbUserName') || 'Guest';
-        document.getElementById('usernameBtn').innerText = userName;
-
-        window.changeUserName = function() {
-            let newName = prompt("သင့်အမည်ကို ရိုက်ထည့်ပါ:", userName);
-            if (newName && newName.trim() !== "") {
-                userName = newName.trim();
-                localStorage.setItem('fbUserName', userName);
-                document.getElementById('usernameBtn').innerText = userName;
+        // Language Dictionary
+        const i18n = {
+            my: {
+                appTitle: "Live Location Sharing",
+                appSubtitle: "အကောင့်ဝင်ရောက်ပြီး တည်နေရာ စတင်မျှဝေပါ",
+                labelName: "အမည် (Display Name)",
+                placeholderName: "ဥပမာ - မောင်မောင်",
+                labelPassword: "လျှို့ဝှက်နံပါတ် (Password)",
+                labelAvatar: "Avatar ရွေးချယ်ပါ",
+                btnContinue: "စတင်မည် (Continue to Map)",
+                btnLogout: "ထွက်မည်",
+                mapHeader: "Live Interactive Map",
+                btnMyLoc: "My Location",
+                labelStatus: "အခြေအနေ:",
+                statusStopped: "ရပ်တန့်ထားသည်",
+                statusSearching: "Location ရှာဖွေနေသည်...",
+                statusSharing: "Real-time မျှဝေနေပါပြီ ✅",
+                statusError: "Location ရယူ၍ မရပါ",
+                labelAccuracy: "တိကျမှု",
+                labelSync: "နောက်ဆုံး Sync",
+                btnStartShare: "Location စတင်မျှဝေမည်",
+                btnStopShare: "Location မျှဝေမှု ရပ်တန့်မည်",
+                activeUsersHeader: "Online မိုဘိုင်း အသုံးပြုသူများ",
+                searchingUsers: "ချိတ်ဆက်နေသူများကို ရှာဖွေနေသည်...",
+                noUsers: "Active users မရှိသေးပါ။",
+                btnView: "ကြည့်မည်",
+                logoutConfirm: "အကောင့်မှ ထွက်မှာ သေချာပါသလား? Location မျှဝေမှု ရပ်တန့်သွားမည်ဖြစ်သည်။"
+            },
+            en: {
+                appTitle: "Live Location Sharing",
+                appSubtitle: "Log in to start sharing your live location",
+                labelName: "Display Name",
+                placeholderName: "e.g. John Doe",
+                labelPassword: "Password",
+                labelAvatar: "Select Avatar",
+                btnContinue: "Continue to Map",
+                btnLogout: "Logout",
+                mapHeader: "Live Interactive Map",
+                btnMyLoc: "My Location",
+                labelStatus: "Status:",
+                statusStopped: "Stopped",
+                statusSearching: "Acquiring location...",
+                statusSharing: "Sharing Real-time ✅",
+                statusError: "Unable to get location",
+                labelAccuracy: "Accuracy",
+                labelSync: "Last Sync",
+                btnStartShare: "Start Sharing Location",
+                btnStopShare: "Stop Sharing Location",
+                activeUsersHeader: "Online Users",
+                searchingUsers: "Searching active users...",
+                noUsers: "No active users sharing location.",
+                btnView: "View",
+                logoutConfirm: "Are you sure you want to log out? Location sharing will stop."
             }
         };
 
-        // Map Setup
-        let map = L.map('map').setView([16.8661, 96.1951], 13);
-        L.tileLayer('https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
-            maxZoom: 20,
-            subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
-            attribution: '© Google Maps'
-        }).addTo(map);
-
+        // App State Variables
+        let currentLang = localStorage.getItem('appLang') || 'my';
+        let userId = localStorage.getItem('fbUserId') || '';
+        let userName = localStorage.getItem('fbUserName') || '';
+        let userAvatar = localStorage.getItem('fbUserAvatar') || '👨';
+        
+        let map = null;
         let markers = {};
         let watchId = null;
+        let lastPosition = null;
 
-        // Listen to all users' locations in real-time from Firestore
-        onSnapshot(collection(db, "locations"), (snapshot) => {
-            let listHTML = '';
-            snapshot.forEach((docSnap) => {
-                let data = docSnap.data();
-                let id = docSnap.id;
+        // Language Switcher Function
+        window.toggleLanguage = function() {
+            currentLang = currentLang === 'my' ? 'en' : 'my';
+            localStorage.setItem('appLang', currentLang);
+            applyLanguage();
+        };
 
-                if (data.latitude && data.longitude) {
-                    // Update or create marker on map
-                    if (markers[id]) {
-                        markers[id].setLatLng([data.latitude, data.longitude]);
-                    } else {
-                        markers[id] = L.marker([data.latitude, data.longitude]).addTo(map)
-                            .bindPopup(`<b>📍 ${data.name}</b>`);
-                    }
-
-                    // Render active users list
-                    listHTML += `
-                        <div class="flex items-center justify-between bg-gray-50 border p-2 rounded-xl text-xs">
-                            <span class="font-bold text-gray-700">👤 ${data.name} ${id === userId ? '(You)' : ''}</span>
-                            <button onclick="map.setView([${data.latitude}, ${data.longitude}], 16)" class="bg-pink-600 text-white px-2 py-1 rounded-lg">View</button>
-                        </div>
-                    `;
+        function applyLanguage() {
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (i18n[currentLang][key]) {
+                    el.innerText = i18n[currentLang][key];
                 }
             });
-            document.getElementById('userList').innerHTML = listHTML || '<p class="text-xs text-gray-400 text-center">Active users မရှိသေးပါ။</p>';
-        });
 
-        // Toggle Sharing Function
-        window.toggleLocationSharing = function() {
-            const btn = document.getElementById('shareBtn');
-            if (watchId === null) {
-                if (navigator.geolocation) {
-                    document.getElementById('status').innerText = "Status: တည်နေရာကို ရှာဖွေနေပါပြီ...";
-                    
-                    watchId = navigator.geolocation.watchPosition(async (position) => {
-                        let lat = position.coords.latitude;
-                        let lon = position.coords.longitude;
+            // Update Input Placeholders
+            const nameInput = document.getElementById('inputName');
+            if (nameInput) nameInput.placeholder = i18n[currentLang].placeholderName;
 
-                        document.getElementById('coords').innerText = `Lat: ${lat.toFixed(4)}, Lon: ${lon.toFixed(4)}`;
-                        document.getElementById('status').innerText = "Status: Real-time မျှဝေနေပါပြီ ✅";
+            // Update Share button status text dynamically
+            const isSharing = localStorage.getItem('isSharing') === 'true';
+            updateUI(isSharing);
+        }
 
-                        // Save data to Firebase Firestore
-                        await setDoc(doc(db, "locations", userId), {
-                            name: userName,
-                            latitude: lat,
-                            longitude: lon,
-                            updatedAt: Date.now()
-                        });
+        // Simple Password hashing for consistent Document ID creation
+        function hashPassword(str) {
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) {
+                hash = ((hash << 5) - hash) + str.charCodeAt(i);
+                hash |= 0;
+            }
+            return 'usr_' + Math.abs(hash).toString(36);
+        }
 
-                    }, (error) => {
-                        document.getElementById('status').innerText = "Status: Location ရယူ၍ မရပါ";
-                    }, { enableHighAccuracy: true });
-
-                    btn.innerText = "Location မျှဝေမှု ရပ်တန့်မည်";
-                    btn.className = "w-full bg-red-600 hover:bg-red-700 text-white font-medium py-2.5 rounded-xl transition duration-200";
+        // Avatar Selection
+        window.selectAvatar = function(avatarSymbol) {
+            userAvatar = avatarSymbol;
+            document.querySelectorAll('.avatar-btn').forEach(btn => {
+                if (btn.innerText === avatarSymbol) {
+                    btn.classList.add('border-pink-500', 'bg-pink-50');
+                    btn.classList.remove('border-transparent', 'bg-gray-50');
+                } else {
+                    btn.classList.remove('border-pink-500', 'bg-pink-50');
+                    btn.classList.add('border-transparent', 'bg-gray-50');
                 }
-            } else {
-                navigator.geolocation.clearWatch(watchId);
-                watchId = null;
+            });
+        };
 
-                // Remove user location from Firestore when stopped
-                deleteDoc(doc(db, "locations", userId));
+        // Login Handler
+        window.handleLogin = function(e) {
+            e.preventDefault();
+            const inputName = document.getElementById('inputName').value.trim();
+            const inputPassword = document.getElementById('inputPassword').value.trim();
 
-                document.getElementById('status').innerText = "Status: ရပ်တန့်ထားသည်";
-                document.getElementById('coords').innerText = "Lat: -, Lon: -";
-                btn.innerText = "Location စတင်မျှဝေမည်";
-                btn.className = "w-full bg-pink-600 hover:bg-pink-700 text-white font-medium py-2.5 rounded-xl transition duration-200";
+            if (!inputName || !inputPassword) return;
+
+            // Compute deterministic User ID from Password
+            userId = hashPassword(inputPassword);
+            userName = inputName;
+
+            localStorage.setItem('fbUserId', userId);
+            localStorage.setItem('fbUserName', userName);
+            localStorage.setItem('fbUserAvatar', userAvatar);
+
+            showScreen('map');
+        };
+
+        // Logout Handler
+        window.logout = async function() {
+            if (confirm(i18n[currentLang].logoutConfirm)) {
+                await stopSharing();
+                localStorage.removeItem('fbUserId');
+                localStorage.removeItem('fbUserName');
+                localStorage.removeItem('fbUserAvatar');
+                userId = '';
+                userName = '';
+                userAvatar = '👨';
+                showScreen('login');
             }
         };
+
+        // Screen Switcher
+        function showScreen(screen) {
+            const loginScreen = document.getElementById('loginScreen');
+            const mapScreen = document.getElementById('mapScreen');
+
+            if (screen === 'map') {
+                loginScreen.classList.add('hidden');
+                mapScreen.classList.remove('hidden');
+                mapScreen.classList.add('flex');
+
+                document.getElementById('userNameDisplay').innerText = userName;
+                document.getElementById('userAvatarDisplay').innerText = userAvatar;
+
+                initMap();
+                
+                // Resume sharing automatically if it was active before closing browser
+                if (localStorage.getItem('isSharing') === 'true') {
+                    startSharing();
+                }
+            } else {
+                mapScreen.classList.add('hidden');
+                mapScreen.classList.remove('flex');
+                loginScreen.classList.remove('hidden');
+
+                document.getElementById('inputName').value = userName || '';
+            }
+            applyLanguage();
+        }
+
+        // Initialize Leaflet Map
+        function initMap() {
+            if (map) return; // Prevent double init
+
+            map = L.map('map', { zoomControl: false }).setView([16.8661, 96.1951], 13);
+            L.control.zoom({ position: 'topright' }).addTo(map);
+
+            L.tileLayer('https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+                maxZoom: 20,
+                subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+                attribution: '© Google Maps'
+            }).addTo(map);
+
+            // Firestore Real-time Snapshot
+            onSnapshot(collection(db, "locations"), (snapshot) => {
+                let listHTML = '';
+                let activeIds = new Set();
+                let activeCount = 0;
+
+                snapshot.forEach((docSnap) => {
+                    let data = docSnap.data();
+                    let id = docSnap.id;
+                    activeIds.add(id);
+
+                    if (data.latitude && data.longitude) {
+                        activeCount++;
+                        const isSelf = (id === userId);
+                        const lat = parseFloat(data.latitude);
+                        const lon = parseFloat(data.longitude);
+
+                        if (markers[id]) {
+                            markers[id].setLatLng([lat, lon]);
+                        } else {
+                            const iconSymbol = data.avatar || '📍';
+                            const customIcon = L.divIcon({
+                                className: 'custom-div-icon',
+                                html: `<div class="${isSelf ? 'self-marker-icon' : 'user-marker-icon'} w-7 h-7 flex items-center justify-center text-xs">${iconSymbol}</div>`,
+                                iconSize: [28, 28],
+                                iconAnchor: [14, 14]
+                            });
+
+                            markers[id] = L.marker([lat, lon], { icon: customIcon }).addTo(map)
+                                .bindPopup(`
+                                    <div class="text-xs p-1">
+                                        <b class="text-pink-700">${data.name} ${isSelf ? '(You)' : ''}</b><br/>
+                                        <span class="text-gray-500">Avatar: ${data.avatar || '📍'}</span>
+                                    </div>
+                                `);
+                        }
+
+                        listHTML += `
+                            <div class="flex items-center justify-between bg-gray-50 border border-pink-100 p-2.5 rounded-2xl text-xs">
+                                <div class="flex items-center space-x-2">
+                                    <span class="text-base">${data.avatar || '👨'}</span>
+                                    <div>
+                                        <p class="font-bold text-gray-800">${data.name} ${isSelf ? '<span class="text-blue-600">(You)</span>' : ''}</p>
+                                        <p class="text-[10px] text-gray-400">Lat: ${lat.toFixed(3)}, Lon: ${lon.toFixed(3)}</p>
+                                    </div>
+                                </div>
+                                <button onclick="map.setView([${lat}, ${lon}], 16)" class="bg-pink-600 hover:bg-pink-700 text-white border border-pink-200 px-3 py-1.5 rounded-xl font-medium transition shadow-sm text-xs flex items-center gap-1">
+                                    <i class="fa-solid fa-eye"></i> ${i18n[currentLang].btnView}
+                                </button>
+                            </div>
+                        `;
+                    }
+                });
+
+                // Remove markers ONLY when explicit deleteDoc happens
+                Object.keys(markers).forEach((id) => {
+                    if (!activeIds.has(id)) {
+                        map.removeLayer(markers[id]);
+                        delete markers[id];
+                    }
+                });
+
+                document.getElementById('activeCount').innerText = `Active: ${activeCount}`;
+                document.getElementById('userList').innerHTML = listHTML || `<p class="text-xs text-gray-400 text-center py-4">${i18n[currentLang].noUsers}</p>`;
+            });
+        }
+
+        // Re-center Map on User
+        window.reCenterSelf = function() {
+            if (lastPosition) {
+                map.setView([lastPosition.coords.latitude, lastPosition.coords.longitude], 16);
+            } else if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(pos => {
+                    map.setView([pos.coords.latitude, pos.coords.longitude], 16);
+                });
+            }
+        };
+
+        // Real-time Push Location to Firebase
+        async function pushLocationToFirebase(position) {
+            let lat = position.coords.latitude;
+            let lon = position.coords.longitude;
+            let accuracy = position.coords.accuracy;
+
+            document.getElementById('coords').innerText = `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+            document.getElementById('accuracy').innerText = `±${Math.round(accuracy)}m`;
+            document.getElementById('lastUpdated').innerText = new Date().toLocaleTimeString();
+
+            document.getElementById('status').innerText = i18n[currentLang].statusSharing;
+            document.getElementById('status').className = "font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-md";
+            document.getElementById('sharingBadge').innerText = "Active";
+            document.getElementById('sharingBadge').className = "font-semibold text-emerald-600";
+
+            try {
+                await setDoc(doc(db, "locations", userId), {
+                    name: userName,
+                    avatar: userAvatar,
+                    latitude: lat,
+                    longitude: lon,
+                    accuracy: accuracy,
+                    updatedAt: Date.now()
+                });
+            } catch (err) {
+                console.error("Firestore Upload Error:", err);
+            }
+        }
+
+        function startSharing() {
+            if (!navigator.geolocation) {
+                alert("Geolocation API not supported");
+                return;
+            }
+
+            document.getElementById('status').innerText = i18n[currentLang].statusSearching;
+
+            watchId = navigator.geolocation.watchPosition(
+                (position) => {
+                    lastPosition = position;
+                    pushLocationToFirebase(position);
+                },
+                (error) => {
+                    document.getElementById('status').innerText = i18n[currentLang].statusError;
+                    document.getElementById('status').className = "font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-md";
+                },
+                { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+            );
+
+            localStorage.setItem('isSharing', 'true');
+            updateUI(true);
+        }
+
+        async function stopSharing() {
+            if (watchId !== null) {
+                navigator.geolocation.clearWatch(watchId);
+                watchId = null;
+            }
+
+            localStorage.setItem('isSharing', 'false');
+
+            // Delete doc ONLY on explicit manual stop or logout
+            if (userId) {
+                try {
+                    await deleteDoc(doc(db, "locations", userId));
+                } catch (e) {
+                    console.error("Error deleting location doc:", e);
+                }
+            }
+
+            document.getElementById('status').innerText = i18n[currentLang].statusStopped;
+            document.getElementById('status').className = "font-bold text-pink-700 bg-pink-100 px-2 py-0.5 rounded-md";
+            document.getElementById('coords').innerText = "-";
+            document.getElementById('accuracy').innerText = "-";
+            document.getElementById('lastUpdated').innerText = "-";
+            document.getElementById('sharingBadge').innerText = "Off";
+            document.getElementById('sharingBadge').className = "font-semibold text-gray-400";
+
+            updateUI(false);
+        }
+
+        function updateUI(isSharing) {
+            const btn = document.getElementById('shareBtn');
+            const btnText = document.getElementById('shareBtnText');
+            if (isSharing) {
+                if (btnText) btnText.innerText = i18n[currentLang].btnStopShare;
+                btn.className = "w-full bg-red-600 hover:bg-red-700 active:scale-[0.99] text-white font-bold py-3 rounded-2xl shadow-lg shadow-red-200 transition duration-200 flex items-center justify-center gap-2 text-sm";
+            } else {
+                if (btnText) btnText.innerText = i18n[currentLang].btnStartShare;
+                btn.className = "w-full bg-pink-600 hover:bg-pink-700 active:scale-[0.99] text-white font-bold py-3 rounded-2xl shadow-lg shadow-pink-200 transition duration-200 flex items-center justify-center gap-2 text-sm";
+            }
+        }
+
+        window.toggleLocationSharing = function() {
+            if (localStorage.getItem('isSharing') === 'true') {
+                stopSharing();
+            } else {
+                startSharing();
+            }
+        };
+
+        // On Load initialization
+        window.addEventListener('DOMContentLoaded', () => {
+            applyLanguage();
+            if (userName && userId) {
+                showScreen('map');
+            } else {
+                showScreen('login');
+            }
+        });
     </script>
 </body>
 </html>
