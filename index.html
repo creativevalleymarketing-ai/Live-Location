@@ -299,7 +299,7 @@
         let watchId = null;
         let map = null;
         let markers = {};
-        let routingControl = null; // Leaflet Routing Control instance
+        let routingControl = null;
         let myCurrentPos = null;
         let alertedUsers = new Set();
 
@@ -644,7 +644,7 @@
             }
         };
 
-        // Google Maps style routing using Leaflet Routing Machine (OSRM backend)
+        // Google Maps style routing with DEFAULT PINS REMOVED
         function drawRoutingBetween(fromLat, fromLon, toLat, toLon, targetName) {
             if (routingControl) {
                 map.removeControl(routingControl);
@@ -662,13 +662,16 @@
                 lineOptions: {
                     styles: [{ color: '#ec4899', weight: 5, opacity: 0.8 }]
                 },
+                // Remove default blue start/end location pins completely
+                createWaypointMarker: function() {
+                    return null;
+                },
                 addWaypoints: false,
                 draggableWaypoints: false,
                 fitSelectedRoutes: true,
                 show: false
             }).addTo(map);
 
-            // Listen to route calculation results to get exact road distance and ETA
             routingControl.on('routesfound', function(e) {
                 const routes = e.routes;
                 if (routes && routes.length > 0) {
