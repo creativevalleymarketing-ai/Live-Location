@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="my">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Firebase Real-time Live Locator</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Pyidaungsu&display=swap');
+        body { font-family: 'Pyidaungsu', sans-serif; }
+        #map { height: 400px; width: 100%; border-radius: 1rem; }
+    </style>
+</head>
+<body class="text-gray-800 p-4 max-w-md mx-auto pb-10 bg-pink-100">
+    
+    <!-- App Header -->
+    <div class="flex items-center justify-between mb-4 bg-white p-3 rounded-2xl shadow-sm border border-pink-200">
+        <h1 class="font-bold text-lg text-pink-700">📍 Firebase Live Locator</h1>
+        <button onclick="changeUserName()" id="usernameBtn" class="text-xs bg-pink-200 text-pink-800 px-2.5 py-1 rounded-full font-bold">User</button>
+    </div>
+
+    <!-- Map Section -->
+    <div class="bg-white p-4 rounded-2xl shadow-md mb-4 border border-pink-200">
+        <h2 class="font-bold text-md mb-2 text-gray-700">🗺️ Live Interactive Map</h2>
+        <div class="mb-3 overflow-hidden shadow-inner">
+            <div id="map"></div>
+        </div>
+
+        <div id="statusBox" class="bg-pink-100 p-3 rounded-xl mb-3 text-sm">
+            <p id="status" class="text-pink-900 font-bold">Status: မစတင်ရသေးပါ</p>
+            <p id="coords" class="text-xs text-gray-600 mt-1">Lat: -, Lon: -</p>
+        </div>
+
+        <button onclick="toggleLocationSharing()" id="shareBtn" class="w-full bg-pink-600 hover:bg-pink-700 text-white font-medium py-2.5 rounded-xl transition duration-200">
+            Location စတင်မျှဝေမည်
+        </button>
+    </div>
+
+    <!-- Active Sharers List -->
+    <div class="bg-white p-4 rounded-2xl shadow-md border border-pink-200">
+        <h2 class="font-bold text-md mb-2 text-gray-700">👥 Active Users on Map</h2>
+        <div id="userList" class="space-y-2 max-h-40 overflow-y-auto">
+            <p class="text-xs text-gray-400 text-center py-2">ချိတ်ဆက်နေသူများကို ရှာဖွေနေသည်...</p>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- Firebase SDK (Modular v10 CDN) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, doc, setDoc, onSnapshot, collection, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        // 👉 သင့်ရဲ့ Firebase Config အချက်အလက်များကို ဤနေရာတွင် ထည့်ပါ
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_PROJECT_ID.appspot.com",
+            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+            appId: "YOUR_APP_ID"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // User Identity Setup
+        let userId = localStorage.getItem('fbUserId');
+        if (!userId) {
+            userId = 'user_' + Math.random().toString(36).substring(2, 9);
+            localStorage.setItem('fbUserId', userId);
+        }
+
+        let userName = localStorage.getItem('fbUserName') || 'Guest';
+        document.getElementById('usernameBtn').innerText = userName;
+
+        window.changeUserName = function() {
+            let newName = prompt("သင့်အမည်ကို ရိုက်ထည့်ပါ:", userName);
+            if (newName && newName.trim() !== "") {
+                userName = newName.trim();
+                localStorage.setItem('fbUserName', userName);
+                document.getElementById('usernameBtn').innerText = userName;
+            }
+        };
+
+        // Map Setup
+        let map = L.map('map').setView([16.8661, 96.1951], 13);
+        L.tileLayer('https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+            maxZoom: 20,
+            subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+            attribution: '© Google Maps'
+        }).addTo(map);
+
+        let markers = {};
+        let watchId = null;
+
+        // Listen to all users' locations in real-time from Firestore
+        onSnapshot(collection(db, "locations"), (snapshot) => {
+            let listHTML = '';
+            snapshot.forEach((docSnap) => {
+                let data = docSnap.data();
+                let id = docSnap.id;
+
+                if (data.latitude && data.longitude) {
+                    // Update or create marker on map
+                    if (markers[id]) {
+                        markers[id].setLatLng([data.latitude, data.longitude]);
+                    } else {
+                        markers[id] = L.marker([data.latitude, data.longitude]).addTo(map)
+                            .bindPopup(`<b>📍 ${data.name}</b>`);
+                    }
+
+                    // Render active users list
+                    listHTML += `
+                        <div class="flex items-center justify-between bg-gray-50 border p-2 rounded-xl text-xs">
+                            <span class="font-bold text-gray-700">👤 ${data.name} ${id === userId ? '(You)' : ''}</span>
+                            <button onclick="map.setView([${data.latitude}, ${data.longitude}], 16)" class="bg-pink-600 text-white px-2 py-1 rounded-lg">View</button>
+                        </div>
+                    `;
+                }
+            });
+            document.getElementById('userList').innerHTML = listHTML || '<p class="text-xs text-gray-400 text-center">Active users မရှိသေးပါ။</p>';
+        });
+
+        // Toggle Sharing Function
+        window.toggleLocationSharing = function() {
+            const btn = document.getElementById('shareBtn');
+            if (watchId === null) {
+                if (navigator.geolocation) {
+                    document.getElementById('status').innerText = "Status: တည်နေရာကို ရှာဖွေနေပါပြီ...";
+                    
+                    watchId = navigator.geolocation.watchPosition(async (position) => {
+                        let lat = position.coords.latitude;
+                        let lon = position.coords.longitude;
+
+                        document.getElementById('coords').innerText = `Lat: ${lat.toFixed(4)}, Lon: ${lon.toFixed(4)}`;
+                        document.getElementById('status').innerText = "Status: Real-time မျှဝေနေပါပြီ ✅";
+
+                        // Save data to Firebase Firestore
+                        await setDoc(doc(db, "locations", userId), {
+                            name: userName,
+                            latitude: lat,
+                            longitude: lon,
+                            updatedAt: Date.now()
+                        });
+
+                    }, (error) => {
+                        document.getElementById('status').innerText = "Status: Location ရယူ၍ မရပါ";
+                    }, { enableHighAccuracy: true });
+
+                    btn.innerText = "Location မျှဝေမှု ရပ်တန့်မည်";
+                    btn.className = "w-full bg-red-600 hover:bg-red-700 text-white font-medium py-2.5 rounded-xl transition duration-200";
+                }
+            } else {
+                navigator.geolocation.clearWatch(watchId);
+                watchId = null;
+
+                // Remove user location from Firestore when stopped
+                deleteDoc(doc(db, "locations", userId));
+
+                document.getElementById('status').innerText = "Status: ရပ်တန့်ထားသည်";
+                document.getElementById('coords').innerText = "Lat: -, Lon: -";
+                btn.innerText = "Location စတင်မျှဝေမည်";
+                btn.className = "w-full bg-pink-600 hover:bg-pink-700 text-white font-medium py-2.5 rounded-xl transition duration-200";
+            }
+        };
+    </script>
+</body>
+</html>
