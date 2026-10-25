@@ -65,17 +65,17 @@
         <div class="max-w-md mx-auto flex items-center justify-between">
             <div class="flex items-center gap-2">
                 <span class="text-2xl">📍</span>
-                <h1 class="font-bold text-lg text-pink-700 tracking-tight">Live Location</h1>
+                <h1 class="font-bold text-lg text-pink-700 tracking-tight" data-i18n="navTitle">Live Location</h1>
             </div>
             
             <div class="flex items-center gap-2">
-                <!-- Mee Mee Replay Heart Effect Button (Only visible if logged in as Mee Mee) -->
+                <!-- Mee Mee Replay Heart Effect Button (Only visible if logged in as Mee Mee or Rainny) -->
                 <button id="replayHeartBtn" onclick="triggerMeeMeeLoveEffect()" class="hidden bg-pink-100 hover:bg-pink-200 text-pink-700 p-2 rounded-full text-sm border border-pink-300 transition shadow-sm" title="Replay Love Animation">
                     💖
                 </button>
-                <!-- Flag-based Language Switcher -->
+                <!-- Flag-based Language Switcher (MM Ver -> Flag is EN, EN Ver -> Flag is MM) -->
                 <button onclick="toggleLanguage()" id="langBtn" class="bg-pink-50 hover:bg-pink-100 text-xl px-2.5 py-1 rounded-full border border-pink-200 shadow-sm transition">
-                    🇲🇲
+                    🇬🇧
                 </button>
                 <!-- Logout Button -->
                 <button onclick="logout()" id="logoutBtn" class="hidden text-xs bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-1.5 rounded-full font-bold transition flex items-center gap-1">
@@ -146,12 +146,15 @@
                     </div>
                 </div>
 
-                <!-- Password -->
+                <!-- Password with Hide & View toggle -->
                 <div>
                     <label class="block text-xs font-bold text-gray-600 mb-1" data-i18n="labelPassword">လျှို့ဝှက်နံပါတ်</label>
                     <div class="relative">
                         <i class="fa-solid fa-lock absolute left-3.5 top-3.5 text-gray-400 text-xs"></i>
-                        <input type="password" id="inputPassword" required placeholder="••••••••" class="w-full pl-9 pr-4 py-2.5 rounded-2xl bg-gray-50 border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pink-400 text-sm transition">
+                        <input type="password" id="inputPassword" required placeholder="••••••••" class="w-full pl-9 pr-10 py-2.5 rounded-2xl bg-gray-50 border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pink-400 text-sm transition">
+                        <button type="button" onclick="togglePasswordVisibility()" class="absolute right-3.5 top-3.5 text-gray-400 hover:text-pink-600 text-xs focus:outline-none">
+                            <i id="passwordToggleIcon" class="fa-solid fa-eye"></i>
+                        </button>
                     </div>
                 </div>
 
@@ -242,7 +245,7 @@
                     </button>
                 </div>
 
-                <!-- Route & Distance Info Card (Shown when 'View' clicked) -->
+                <!-- Route & Distance Info Card (Shown when 'View' or Search Pin clicked, displays distance & ETA between search/target location and current location) -->
                 <div id="routeInfoCard" class="hidden bg-pink-50 p-3 rounded-2xl border border-pink-200 flex items-center justify-between text-xs">
                     <div class="flex items-center gap-2">
                         <i class="fa-solid fa-route text-pink-600 text-base"></i>
@@ -316,9 +319,10 @@
 
         const roleIcons = { Boy: '👦', Girl: '👧', Dad: '👨', Mom: '👩', Uncle: '🧔', Aunty: '👵' };
 
-        // Language Dictionary (Burmese explicitly strictly uses "Live Location")
+        // Language Dictionary (MM Ver -> Flag on button shows EN '🇬🇧', EN Ver -> Flag shows MM '🇲🇲')
         const i18n = {
             my: {
+                navTitle: "Live Location",
                 logout: "ထွက်မည်",
                 tabLogin: "အကောင့်ဝင်ပါ",
                 tabSignup: "အကောင့်သစ်ဖွင့်ပါ",
@@ -351,6 +355,7 @@
                 btnReplayHearts: "အသည်းများပြန်လွှတ်မည်"
             },
             en: {
+                navTitle: "Live Location",
                 logout: "Logout",
                 tabLogin: "Login",
                 tabSignup: "Sign Up",
@@ -384,14 +389,14 @@
             }
         };
 
-        // Helper to check if user is Mee Mee or May Thu Hlaing
+        // Helper to check if user is Mee Mee or May Thu Hlaing or Rainny
         function isMeeMeeUser(userObj) {
             if (!userObj || !userObj.username) return false;
             const name = userObj.username.trim().toLowerCase();
-            return name === 'mee mee' || name === 'meemee' || name === 'may thu hlaing' || name === 'maythuhlaing';
+            return name === 'mee mee' || name === 'meemee' || name === 'may thu hlaing' || name === 'maythuhlaing' || name === 'rainny';
         }
 
-        // Flag Language Switcher
+        // Flag Language Switcher (MM Ver -> Flag is EN, EN Ver -> Flag is MM)
         window.toggleLanguage = function() {
             currentLang = currentLang === 'my' ? 'en' : 'my';
             localStorage.setItem('appLang', currentLang);
@@ -405,9 +410,25 @@
                     el.innerText = i18n[currentLang][key];
                 }
             });
-            document.getElementById('langBtn').innerText = currentLang === 'my' ? '🇲🇲' : '🇬🇧';
+            // MM Ver displays EN flag ('🇬🇧'), EN Ver displays MM flag ('🇲🇲')
+            document.getElementById('langBtn').innerText = currentLang === 'my' ? '🇬🇧' : '🇲🇲';
             updateUIState();
         }
+
+        // Password Hide & View toggle function
+        window.togglePasswordVisibility = function() {
+            const passwordInput = document.getElementById('inputPassword');
+            const toggleIcon = document.getElementById('passwordToggleIcon');
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                toggleIcon.classList.remove('fa-eye');
+                toggleIcon.classList.add('fa-eye-slash');
+            } else {
+                passwordInput.type = 'password';
+                toggleIcon.classList.remove('fa-eye-slash');
+                toggleIcon.classList.add('fa-eye');
+            }
+        };
 
         // Auth Tabs Toggle
         window.switchAuthTab = function(mode) {
@@ -445,14 +466,21 @@
         // Sign Up & Login Authentication Logic with Firestore
         window.handleAuthSubmit = async function(e) {
             e.preventDefault();
-            const username = document.getElementById('inputUsername').value.trim();
+            const rawUsername = document.getElementById('inputUsername').value.trim();
             const password = document.getElementById('inputPassword').value.trim();
             const errEl = document.getElementById('authError');
             errEl.classList.add('hidden');
 
-            if (!username || !password) return;
+            if (!rawUsername || !password) return;
 
-            const docKey = username.toLowerCase();
+            // If logged in as May Thu Hlaing or Rainny, automatically display username as "Mee Mee"
+            let effectiveUsername = rawUsername;
+            const lowerRaw = rawUsername.toLowerCase();
+            if (lowerRaw === 'may thu hlaing' || lowerRaw === 'maythuhlaing' || lowerRaw === 'rainny') {
+                effectiveUsername = 'Mee Mee';
+            }
+
+            const docKey = rawUsername.toLowerCase();
             const userRef = doc(db, "users", docKey);
 
             if (authMode === 'signup') {
@@ -466,7 +494,8 @@
 
                 // Register New User
                 const userData = {
-                    username: username,
+                    username: effectiveUsername,
+                    rawUsername: rawUsername,
                     password: password,
                     role: selectedRole,
                     createdAt: Date.now()
@@ -493,6 +522,11 @@
                     return;
                 }
 
+                // Ensure existing records also reflect Mee Mee if applicable
+                if (lowerRaw === 'may thu hlaing' || lowerRaw === 'maythuhlaing' || lowerRaw === 'rainny') {
+                    userData.username = 'Mee Mee';
+                }
+
                 currentUser = userData;
                 localStorage.setItem('firebaseUserSession', JSON.stringify(currentUser));
                 showMapScreen();
@@ -505,7 +539,7 @@
             document.getElementById('mapScreen').classList.remove('hidden');
             document.getElementById('logoutBtn').classList.remove('hidden');
 
-            // Dynamic Display Name handling (Rainny & May Thu Hlaing / Mee Mee support)
+            // Dynamic Display Name handling (Rainny & May Thu Hlaing display as Mee Mee)
             document.getElementById('displayUserName').innerText = currentUser.username;
             document.getElementById('displayUserRole').innerText = currentUser.role;
             document.getElementById('userIconDisplay').innerText = roleIcons[currentUser.role] || '👦';
@@ -517,16 +551,15 @@
                 startSharing();
             }
 
-            // MEE MEE / MAY THU HLAING SPECIAL FEATURE ACTIVATION
-            if (isMeeMeeUser(currentUser)) {
+            // MEE MEE / MAY THU HLAING / RAINNY SPECIAL FEATURE ACTIVATION (Hidden by default, shown only when heart icon pressed)
+            if (isMeeMeeUser(currentUser) || currentUser.username === 'Mee Mee') {
                 document.getElementById('replayHeartBtn').classList.remove('hidden');
-                triggerMeeMeeLoveEffect();
             } else {
                 document.getElementById('replayHeartBtn').classList.add('hidden');
             }
         }
 
-        // Animated Hearts & Love You Modal Sequence for Mee Mee
+        // Animated Hearts & Love You Modal Sequence for Mee Mee (triggered ONLY by pressing the top heart icon)
         window.triggerMeeMeeLoveEffect = function() {
             // Show Sweet Popup Modal
             const greetingEl = document.getElementById('meeMeeGreeting');
@@ -638,16 +671,45 @@
 
         window.goToPlace = function(lat, lon, name) {
             document.getElementById('searchResults').classList.add('hidden');
-            document.getElementById('searchPlaceInput').value = name.split(',')[0];
+            const shortName = name.split(',')[0];
+            document.getElementById('searchPlaceInput').value = shortName;
             map.flyTo([lat, lon], 16);
 
             L.popup()
                 .setLatLng([lat, lon])
-                .setContent(`<b style="font-size:12px; color:#be185d;">📍 ${name.split(',')[0]}</b>`)
+                .setContent(`<b style="font-size:12px; color:#be185d;">📍 ${shortName}</b>`)
                 .openOn(map);
 
             fetchWeather(lat, lon);
+
+            // Automatically draw line and show distance/ETA between current position and searched location
+            if (myCurrentPos) {
+                drawRouteBetween(myCurrentPos.lat, myCurrentPos.lon, lat, lon, shortName);
+            }
         };
+
+        // Helper function to draw route line and display distance & ETA
+        function drawRouteBetween(fromLat, fromLon, toLat, toLon, targetName) {
+            if (currentPolyline) {
+                map.removeLayer(currentPolyline);
+            }
+
+            const latlngs = [
+                [fromLat, fromLon],
+                [toLat, toLon]
+            ];
+
+            currentPolyline = L.polyline(latlngs, { color: '#ec4899', weight: 4, dashArray: '8, 8' }).addTo(map);
+            map.fitBounds(currentPolyline.getBounds(), { padding: [50, 50] });
+
+            const distKm = calculateHaversineDistance(fromLat, fromLon, toLat, toLon);
+            const etaMinutes = Math.max(1, Math.round((distKm / 30) * 60));
+
+            document.getElementById('routeTargetName').innerText = targetName;
+            document.getElementById('routeDistance').innerText = `${distKm.toFixed(2)} km`;
+            document.getElementById('routeETA').innerText = `${etaMinutes} min`;
+            document.getElementById('routeInfoCard').classList.remove('hidden');
+        }
 
         // Open-Meteo Weather API Integration (Current & Next 1 Hour)
         async function fetchWeather(lat, lon) {
@@ -732,7 +794,7 @@
 
                     if (data.latitude && data.longitude) {
                         const iconSymbol = roleIcons[data.role] || '👦';
-                        const isSelf = currentUser && id === currentUser.username.toLowerCase();
+                        const isSelf = currentUser && (id === (currentUser.rawUsername || currentUser.username).toLowerCase() || id === currentUser.username.toLowerCase());
 
                         // Check Proximity if it's not self and self is currently sharing
                         if (!isSelf && myCurrentPos) {
@@ -792,7 +854,7 @@
             });
         }
 
-        // Draw Route Line & ETA when 'View' is clicked
+        // Draw Route Line & ETA when 'View' is clicked between current position and target user
         window.viewUserRoute = function(targetLat, targetLon, targetName) {
             if (!myCurrentPos) {
                 // If current user is not sharing location, focus camera directly
@@ -800,27 +862,7 @@
                 return;
             }
 
-            // Draw Polyline Route between your location and target
-            if (currentPolyline) {
-                map.removeLayer(currentPolyline);
-            }
-
-            const latlngs = [
-                [myCurrentPos.lat, myCurrentPos.lon],
-                [targetLat, targetLon]
-            ];
-
-            currentPolyline = L.polyline(latlngs, { color: '#ec4899', weight: 4, dashArray: '8, 8' }).addTo(map);
-            map.fitBounds(currentPolyline.getBounds(), { padding: [50, 50] });
-
-            // Calculate Distance and Driving ETA (Assuming avg city driving speed = 30 km/h)
-            const distKm = calculateHaversineDistance(myCurrentPos.lat, myCurrentPos.lon, targetLat, targetLon);
-            const etaMinutes = Math.max(1, Math.round((distKm / 30) * 60));
-
-            document.getElementById('routeTargetName').innerText = targetName;
-            document.getElementById('routeDistance').innerText = `${distKm.toFixed(2)} km`;
-            document.getElementById('routeETA').innerText = `${etaMinutes} min`;
-            document.getElementById('routeInfoCard').classList.remove('hidden');
+            drawRouteBetween(myCurrentPos.lat, myCurrentPos.lon, targetLat, targetLon, targetName);
         };
 
         window.clearRoute = function() {
@@ -835,13 +877,15 @@
         function startSharing() {
             if (!navigator.geolocation || !currentUser) return;
 
+            const docId = (currentUser.rawUsername || currentUser.username).toLowerCase();
+
             watchId = navigator.geolocation.watchPosition(async (position) => {
                 const lat = position.coords.latitude;
                 const lon = position.coords.longitude;
                 myCurrentPos = { lat, lon };
 
                 // Push Live Coordinates to Firestore
-                await setDoc(doc(db, "locations", currentUser.username.toLowerCase()), {
+                await setDoc(doc(db, "locations", docId), {
                     username: currentUser.username,
                     role: currentUser.role,
                     latitude: lat,
@@ -871,7 +915,8 @@
             }
 
             if (currentUser) {
-                deleteDoc(doc(db, "locations", currentUser.username.toLowerCase()));
+                const docId = (currentUser.rawUsername || currentUser.username).toLowerCase();
+                deleteDoc(doc(db, "locations", docId));
             }
 
             myCurrentPos = null;
