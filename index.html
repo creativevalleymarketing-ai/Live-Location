@@ -47,9 +47,13 @@
             </div>
             
             <div class="flex items-center gap-2">
+                <!-- Global Unread Chat Indicator -->
+                <button id="globalChatIndicator" onclick="openAllUsersList()" class="hidden relative bg-pink-100 dark:bg-gray-700 text-pink-700 dark:text-pink-300 p-2 rounded-full text-xs border border-pink-300 dark:border-gray-600 transition shadow-sm" title="Unread Messages">
+                    💬 <span id="unreadChatBadge" class="hidden absolute -top-1 -right-1 bg-red-500 w-3 h-3 rounded-full border-2 border-white animate-pulse"></span>
+                </button>
                 <button onclick="toggleDarkMode()" id="darkModeBtn" class="bg-pink-50 dark:bg-gray-700 text-lg px-2.5 py-1 rounded-full border border-pink-200 dark:border-gray-600 shadow-sm transition">🌙</button>
                 <button onclick="toggleLanguage()" id="langBtn" class="bg-pink-50 dark:bg-gray-700 text-xl px-2.5 py-1 rounded-full border border-pink-200 dark:border-gray-600 shadow-sm transition">🇲🇲</button>
-                <button onclick="logout()" id="logoutBtn" class="hidden text-xs bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-200 px-3 py-1.5 rounded-full font-bold transition flex items-center gap-1">
+                <button onclick="logout()" id="logoutBtn" class="hidden text-xs bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 text-gray-600 dark:text-gray-200 px-3 py-1.5 rounded-full font-bold transition flex items-center gap-1">
                     <i class="fa-solid fa-right-from-bracket"></i> <span data-i18n="logout">ထွက်မည်</span>
                 </button>
             </div>
@@ -118,7 +122,6 @@
         <!-- MAP & LIVE LOCATION SCREEN -->
         <section id="mapScreen" class="hidden flex flex-col gap-4">
             
-            <!-- User Header Card (Battery section completely hidden/removed) -->
             <div class="bg-white dark:bg-gray-800 p-3.5 rounded-3xl shadow-sm border border-pink-100 dark:border-gray-700 flex items-center justify-between transition-colors">
                 <div class="flex items-center gap-3">
                     <div id="userIconDisplay" class="w-10 h-10 rounded-2xl bg-pink-100 dark:bg-gray-700 flex items-center justify-center text-2xl border border-pink-200 dark:border-gray-600 shadow-inner">👦</div>
@@ -177,14 +180,14 @@
                 </button>
             </div>
 
-            <!-- Active Users List -->
+            <!-- Active & Registered Users List (For Private Chat & Viewing Location) -->
             <div class="bg-white dark:bg-gray-800 p-4 rounded-3xl shadow-md border border-pink-100 dark:border-gray-700 transition-colors">
                 <h3 class="font-bold text-sm text-gray-700 dark:text-gray-200 mb-3 flex items-center justify-between">
-                    <span data-i18n="activeUsersTitle">👥 Map ပေါ်ရှိ သုံးစွဲသူများ (စကားပြောရန် နှိပ်ပါ)</span>
+                    <span data-i18n="activeUsersTitle">👥 စနစ်အတွင်းရှိ အသုံးပြုသူများ</span>
                     <span id="userCount" class="bg-pink-100 dark:bg-gray-700 text-pink-700 dark:text-pink-300 text-xs px-2.5 py-0.5 rounded-full font-bold">0</span>
                 </h3>
                 <div id="userList" class="space-y-2 max-h-48 overflow-y-auto pr-1">
-                    <p class="text-xs text-gray-400 text-center py-4" data-i18n="searchingUsers">သုံးစွဲသူများ မရှိသေးပါ။</p>
+                    <p class="text-xs text-gray-400 text-center py-4">အသုံးပြုသူများ မရှိသေးပါ။</p>
                 </div>
             </div>
 
@@ -200,7 +203,7 @@
                     <span id="chatPartnerIcon" class="text-xl">👦</span>
                     <div>
                         <h3 class="font-bold text-sm" id="chatPartnerName">Chat</h3>
-                        <span class="text-[10px] text-pink-200" id="chatPartnerStatus">Personal Chat</span>
+                        <span class="text-[10px] text-pink-200">Personal Chat</span>
                     </div>
                 </div>
                 <button onclick="closePrivateChat()" class="hover:text-gray-200 text-xl font-bold"><i class="fa-solid fa-xmark"></i></button>
@@ -226,7 +229,7 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, doc, setDoc, getDoc, onSnapshot, collection, addDoc, deleteDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, doc, setDoc, getDoc, onSnapshot, collection, addDoc, deleteDoc, updateDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyDLG2fJ3fRtBNNO0DhhRFbZoFdDGPRExn0",
@@ -254,8 +257,9 @@
         let myCurrentPos = null;
         let currentChatPartner = null;
         let chatUnsubscribe = null;
+        let globalUnreadListeners = [];
 
-        const roleIcons = { Boy: '👦', Girl: '👧', Dad: '👨', Mom: ' Mom', Uncle: '🧔', Aunty: '👵' };
+        const roleIcons = { Boy: '👦', Girl: '👧', Dad: '👨', Mom: '👩', Uncle: '🧔', Aunty: '👵' };
 
         const i18n = {
             my: {
@@ -275,8 +279,8 @@
                 btnMyLoc: "My Location",
                 btnStartShare: "Live Location စတင်မျှဝေမည်",
                 btnStopShare: "Live Location မျှဝေမှု ရပ်မည်",
-                activeUsersTitle: "👥 Map ပေါ်ရှိ သုံးစွဲသူများ",
-                searchingUsers: "သုံးစွဲသူများ မရှိသေးပါ။",
+                activeUsersTitle: "👥 စနစ်အတွင်းရှိ အသုံးပြုသူများ",
+                searchingUsers: "အသုံးပြုသူများ မရှိသေးပါ။",
                 btnView: "ကြည့်မည်",
                 youTag: "(မိမိ)",
                 alertTitle: "နီးကပ်မှု သတိပေးချက် ⚠️",
@@ -299,8 +303,8 @@
                 btnMyLoc: "My Location",
                 btnStartShare: "Start Live Location",
                 btnStopShare: "Stop Live Location",
-                activeUsersTitle: "👥 Active Users on Map",
-                searchingUsers: "No active users sharing location.",
+                activeUsersTitle: "👥 System Users",
+                searchingUsers: "No users found.",
                 btnView: "View",
                 youTag: "(You)",
                 alertTitle: "Proximity Alert ⚠️",
@@ -394,12 +398,13 @@
             document.getElementById('authScreen').classList.add('hidden');
             document.getElementById('mapScreen').classList.remove('hidden');
             document.getElementById('logoutBtn').classList.remove('hidden');
+            document.getElementById('globalChatIndicator').classList.remove('hidden');
             document.getElementById('displayUserName').innerText = currentUser.username;
             document.getElementById('displayUserRole').innerText = currentUser.role;
             document.getElementById('userIconDisplay').innerText = roleIcons[currentUser.role] || '👦';
 
             initMap();
-            listenToFirestore();
+            loadAllSystemUsersAndLocations();
 
             if (localStorage.getItem('isSharing') === 'true') startSharing();
         }
@@ -411,6 +416,7 @@
             currentUser = null;
             document.getElementById('mapScreen').classList.add('hidden');
             document.getElementById('logoutBtn').classList.add('hidden');
+            document.getElementById('globalChatIndicator').classList.add('hidden');
             document.getElementById('authScreen').classList.remove('hidden');
         };
 
@@ -467,24 +473,40 @@
             return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
         }
 
-        function listenToFirestore() {
-            onSnapshot(collection(db, "locations"), (snapshot) => {
+        // Load all registered system users & active locations simultaneously
+        async function loadAllSystemUsersAndLocations() {
+            // 1. Fetch all registered users from 'users' collection
+            const usersSnap = await getDocs(collection(db, "users"));
+            let allUsers = {};
+            usersSnap.forEach(docSnap => {
+                let u = docSnap.data();
+                allUsers[u.username.toLowerCase()] = u;
+            });
+
+            // 2. Listen to active locations
+            onSnapshot(collection(db, "locations"), (locSnapshot) => {
+                let activeLocs = {};
+                locSnapshot.forEach(docSnap => {
+                    activeLocs[docSnap.id] = docSnap.data();
+                });
+
                 let listHTML = '';
-                let activeIds = new Set();
                 let count = 0;
+                let activeIds = new Set();
 
-                snapshot.forEach((docSnap) => {
-                    let data = docSnap.data();
-                    let id = docSnap.id;
-                    activeIds.add(id);
+                // Render all registered users in list
+                Object.values(allUsers).forEach(userData => {
                     count++;
+                    const id = userData.username.toLowerCase();
+                    const isSelf = currentUser && id === currentUser.username.toLowerCase();
+                    const iconSymbol = roleIcons[userData.role] || '👦';
+                    const locData = activeLocs[id];
+                    const isSharingLoc = locData && locData.latitude && locData.longitude;
 
-                    if (data.latitude && data.longitude) {
-                        const iconSymbol = roleIcons[data.role] || '👦';
-                        const isSelf = currentUser && id === currentUser.username.toLowerCase();
-
+                    if (isSharingLoc) {
+                        activeIds.add(id);
                         if (!isSelf && myCurrentPos) {
-                            const dist = calculateHaversineDistance(myCurrentPos.lat, myCurrentPos.lon, data.latitude, data.longitude);
+                            const dist = calculateHaversineDistance(myCurrentPos.lat, myCurrentPos.lon, locData.latitude, locData.longitude);
                             if (dist <= 0.60) {
                                 document.getElementById('proximityAlert').classList.remove('hidden');
                             }
@@ -494,44 +516,117 @@
                         const customIcon = L.divIcon({ html: markerHtml, className: '', iconSize: [36, 36], iconAnchor: [18, 18] });
 
                         if (userCircles[id]) {
-                            userCircles[id].setLatLng([data.latitude, data.longitude]);
+                            userCircles[id].setLatLng([locData.latitude, locData.longitude]);
                         } else {
-                            userCircles[id] = L.circle([data.latitude, data.longitude], { radius: 300, color: '#ec4899', fillColor: '#f472b6', fillOpacity: 0.15, weight: 1.5 }).addTo(map);
+                            userCircles[id] = L.circle([locData.latitude, locData.longitude], { radius: 300, color: '#ec4899', fillColor: '#f472b6', fillOpacity: 0.15, weight: 1.5 }).addTo(map);
                         }
 
                         if (markers[id]) {
-                            markers[id].setLatLng([data.latitude, data.longitude]);
+                            markers[id].setLatLng([locData.latitude, locData.longitude]);
                             markers[id].setIcon(customIcon);
                         } else {
-                            markers[id] = L.marker([data.latitude, data.longitude], { icon: customIcon }).addTo(map);
+                            markers[id] = L.marker([locData.latitude, locData.longitude], { icon: customIcon }).addTo(map);
                         }
+                    }
 
-                        listHTML += `
-                            <div class="flex items-center justify-between bg-gray-50 dark:bg-gray-700/50 border border-gray-100 dark:border-gray-600 p-2.5 rounded-2xl text-xs shadow-sm">
-                                <div class="flex items-center gap-2 cursor-pointer" onclick="openPrivateChat('${data.username}', '${data.role}')">
-                                    <span class="text-xl">${iconSymbol}</span>
-                                    <div>
-                                        <div class="font-bold text-gray-700 dark:text-gray-200">${data.username} ${isSelf ? `<span class="text-pink-600">(မိမိ)</span>` : ''}</div>
-                                        <div class="text-[10px] text-gray-400">💬 စာပို့ရန်နှိပ်ပါ</div>
-                                    </div>
+                    listHTML += `
+                        <div class="flex items-center justify-between bg-gray-50 dark:bg-gray-700/50 border border-gray-100 dark:border-gray-600 p-2.5 rounded-2xl text-xs shadow-sm">
+                            <div class="flex items-center gap-2 cursor-pointer flex-1" onclick="openPrivateChat('${userData.username}', '${userData.role}')">
+                                <span class="text-xl">${iconSymbol}</span>
+                                <div>
+                                    <div class="font-bold text-gray-700 dark:text-gray-200">${userData.username} ${isSelf ? `<span class="text-pink-600">(မိမိ)</span>` : ''}</div>
+                                    <div class="text-[10px] text-gray-400">${isSharingLoc ? '📍 Sharing Location' : '💤 Not sharing'} | 💬 စာပို့ရန်နှိပ်ပါ</div>
                                 </div>
-                                ${!isSelf ? `<button onclick="viewUserRoute(${data.latitude}, ${data.longitude}, '${data.username}')" class="bg-pink-600 text-white font-bold px-3 py-1.5 rounded-xl text-xs">ကြည့်မည်</button>` : ''}
                             </div>
-                        `;
+                            ${isSharingLoc && !isSelf ? `<button onclick="viewUserRoute(${locData.latitude}, ${locData.longitude}, '${userData.username}')" class="bg-pink-600 text-white font-bold px-3 py-1.5 rounded-xl text-xs shadow-sm hover:bg-pink-700">ကြည့်မည်</button>` : ''}
+                        </div>
+                    `;
+                });
+
+                // Remove inactive markers
+                Object.keys(markers).forEach((id) => {
+                    if (!activeIds.has(id)) {
+                        map.removeLayer(markers[id]);
+                        delete markers[id];
+                        if (userCircles[id]) { map.removeLayer(userCircles[id]); delete userCircles[id]; }
                     }
                 });
 
                 document.getElementById('userCount').innerText = count;
-                document.getElementById('userList').innerHTML = listHTML || `<p class="text-xs text-gray-400 text-center py-4">သုံးစွဲသူများ မရှိသေးပါ။</p>`;
+                document.getElementById('userList').innerHTML = listHTML || `<p class="text-xs text-gray-400 text-center py-4">အသုံးပြုသူများ မရှိသေးပါ။</p>`;
+            });
+
+            setupGlobalUnreadListener();
+        }
+
+        // Global Unread Chat Badge Listener across all users
+        function setupGlobalUnreadListener() {
+            globalUnreadListeners.forEach(unsub => unsub());
+            globalUnreadListeners = [];
+
+            // Listen to chats collection where current user is receiver and status is delivered
+            const usersSnap = await getDocs(collection(db, "users"));
+            usersSnap.forEach(docSnap => {
+                const u = docSnap.data();
+                if (u.username.toLowerCase() !== currentUser.username.toLowerCase()) {
+                    const chatId = [currentUser.username.toLowerCase(), u.username.toLowerCase()].sort().join('_');
+                    const unsub = onSnapshot(collection(db, "chats", chatId, "messages"), (snap) => {
+                        let hasUnread = false;
+                        snap.forEach(mDoc => {
+                            let m = mDoc.data();
+                            if (m.receiver === currentUser.username && m.status === 'delivered') {
+                                hasUnread = true;
+                            }
+                        });
+                        if (hasUnread) {
+                            document.getElementById('unreadChatBadge').classList.remove('hidden');
+                            if ("vibrate" in navigator) navigator.vibrate([200, 100, 200]);
+                        }
+                    });
+                    globalUnreadListeners.push(unsub);
+                }
             });
         }
 
+        window.openAllUsersList = function() {
+            // Scroll to user list box
+            document.getElementById('userList').scrollIntoView({ behavior: 'smooth' });
+        };
+
+        // View Target User Route even if self is not sharing
+        window.viewUserRoute = function(targetLat, targetLon, targetName) {
+            if (currentPolyline) map.removeLayer(currentPolyline);
+
+            if (myCurrentPos) {
+                const latlngs = [[myCurrentPos.lat, myCurrentPos.lon], [targetLat, targetLon]];
+                currentPolyline = L.polyline(latlngs, { color: '#ec4899', weight: 4, dashArray: '8, 8' }).addTo(map);
+                map.fitBounds(currentPolyline.getBounds(), { padding: [50, 50] });
+
+                const distKm = calculateHaversineDistance(myCurrentPos.lat, myCurrentPos.lon, targetLat, targetLon);
+                const etaMinutes = Math.max(1, Math.round((distKm / 30) * 60));
+                document.getElementById('routeTargetName').innerText = targetName;
+                document.getElementById('routeDistance').innerText = `${distKm.toFixed(2)} km`;
+                document.getElementById('routeETA').innerText = `${etaMinutes} min`;
+                document.getElementById('routeInfoCard').classList.remove('hidden');
+            } else {
+                // If self is not sharing, just fly to target user's location
+                map.flyTo([targetLat, targetLon], 16);
+            }
+        };
+
+        window.clearRoute = function() {
+            if (currentPolyline) { map.removeLayer(currentPolyline); currentPolyline = null; }
+            document.getElementById('routeInfoCard').classList.add('hidden');
+        };
+
+        // --- PERSONAL PRIVATE CHAT ---
         window.openPrivateChat = function(partnerName, partnerRole) {
             if (currentUser.username.toLowerCase() === partnerName.toLowerCase()) return;
             currentChatPartner = partnerName;
             document.getElementById('chatPartnerName').innerText = partnerName;
             document.getElementById('chatPartnerIcon').innerText = roleIcons[partnerRole] || '👦';
             document.getElementById('privateChatModal').classList.remove('hidden');
+            document.getElementById('unreadChatBadge').classList.add('hidden');
 
             if (chatUnsubscribe) chatUnsubscribe();
 
