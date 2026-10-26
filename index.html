@@ -61,8 +61,8 @@
         </div>
     </nav>
 
-    <!-- Proximity Alert Notification -->
-    <div id="proximityAlert" class="hidden fixed top-16 left-1/2 -translate-x-1/2 z-[2000] w-11/12 max-w-md bg-pink-600 text-white p-4 rounded-2xl shadow-2xl border-2 border-white flex items-center gap-3 animate-bounce">
+    <!-- Proximity Alert Notification (Screen Center & 3s Timeout) -->
+    <div id="proximityAlert" class="hidden fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[2000] w-11/12 max-w-md bg-pink-600 text-white p-4 rounded-3xl shadow-2xl border-2 border-white flex items-center gap-3">
         <div class="text-3xl">⚠️</div>
         <div class="flex-1">
             <h4 class="font-bold text-sm" data-i18n="alertTitle">နီးကပ်မှု သတိပေးချက်</h4>
@@ -227,7 +227,7 @@
                     </div>
                 </div>
 
-                <!-- Messenger Style Video Call Button -->
+                <!-- Video Call Button inside Chat Box -->
                 <div class="flex items-center gap-3">
                     <button onclick="startVideoCall()" class="bg-white/20 hover:bg-white/30 text-white p-2.5 rounded-full text-sm transition shadow" title="Start Video Call">
                         <i class="fa-solid fa-video"></i>
@@ -291,8 +291,8 @@
         </div>
     </div>
 
-    <!-- INCOMING VIDEO CALL BANNER / MODAL -->
-    <div id="incomingCallBanner" class="hidden fixed top-6 left-1/2 -translate-x-1/2 z-[3500] w-11/12 max-w-md bg-pink-600 text-white p-4 rounded-3xl shadow-2xl border-2 border-white flex items-center justify-between animate-bounce">
+    <!-- INCOMING VIDEO CALL BANNER (Screen Center & 3s Auto Timeout if ignored) -->
+    <div id="incomingCallBanner" class="hidden fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[3500] w-11/12 max-w-md bg-pink-600 text-white p-5 rounded-3xl shadow-2xl border-2 border-white flex items-center justify-between">
         <div class="flex items-center gap-3">
             <span id="incomingCallIcon" class="text-3xl">👦</span>
             <div>
@@ -361,6 +361,7 @@
         let remoteStream = null;
         let callUnsubscribe = null;
         let incomingCallData = null;
+        let incomingCallTimeout = null;
 
         const servers = {
             iceServers: [
@@ -628,7 +629,11 @@
                     activeIds.add(id);
                     if (!isSelf && myCurrentPos) {
                         const dist = calculateHaversineDistance(myCurrentPos.lat, myCurrentPos.lon, locData.latitude, locData.longitude);
-                        if (dist <= 0.60) document.getElementById('proximityAlert').classList.remove('hidden');
+                        if (dist <= 0.60) {
+                            const alertBox = document.getElementById('proximityAlert');
+                            alertBox.classList.remove('hidden');
+                            setTimeout(() => alertBox.classList.add('hidden'), 3000);
+                        }
                     }
 
                     const markerHtml = `<div class="relative flex items-center justify-center w-9 h-9 bg-white dark:bg-gray-800 border-2 border-pink-500 rounded-full shadow-md text-lg ${isSelf ? 'user-marker-pulse' : ''}">${iconSymbol}</div>`;
@@ -906,7 +911,7 @@
             await deleteDoc(doc(db, "chats", chatId, "messages", msgId));
         };
 
-        // --- WEBRTC VIDEO CALLING SYSTEM ---
+        // --- WEBRTC VIDEO CALLING SYSTEM (Fixed Audio/Video Stream Exchange) ---
         window.startVideoCall = async function() {
             if (!currentChatPartner) return;
             document.getElementById('callPartnerName').innerText = currentChatPartner;
@@ -922,14 +927,16 @@
                 document.getElementById('remoteVideo').srcObject = remoteStream;
 
                 localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
-                peerConnection.ontrack = e => e.streams[0].getTracks().forEach(t => remoteStream.addTrack(t));
+                peerConnection.ontrack = e => {
+                    e.streams[0].getTracks().forEach(track => remoteStream.addTrack(track));
+                };
 
                 const callId = [currentUser.username.toLowerCase(), currentChatPartner.toLowerCase()].sort().join('_');
                 const callDoc = doc(db, "calls", callId);
 
                 peerConnection.onicecandidate = async event => {
                     if (event.candidate) {
-                        await setDoc(callDoc, { offerCandidate: event.candidate.toJSON() }, { merge: true });
+                        await setDoc(callDoc, { offerCandidates: [event.candidate.toJSON()] }, { merge: true });
                     }
                 };
 
@@ -946,12 +953,18 @@
 
                 callUnsubscribe = onSnapshot(callDoc, async snap => {
                     const data = snap.data();
-                    if (data && data.answer && !peerConnection.currentRemoteDescription) {
+                    if (!data) return;
+                    if (data.answer && !peerConnection.currentRemoteDescription) {
                         const answer = new RTCSessionDescription(data.answer);
                         await peerConnection.setRemoteDescription(answer);
                         document.getElementById('callStatusText').innerText = "Connected";
                     }
-                    if (data && data.status === 'ended') {
+                    if (data.answerCandidates) {
+                        data.answerCandidates.forEach(async c => {
+                            try { await peerConnection.addIceCandidate(new RTCIceCandidate(c)); } catch(e){}
+                        });
+                    }
+                    if (data.status === 'ended') {
                         endVideoCall();
                     }
                 });
@@ -969,9 +982,16 @@
                     const data = d.data();
                     if (data.receiver === currentUser.username && data.status === 'calling') {
                         incomingCallData = { id: d.id, ...data };
+                        const banner = document.getElementById('incomingCallBanner');
                         document.getElementById('incomingCallName').innerText = data.caller;
-                        document.getElementById('incomingCallBanner').classList.remove('hidden');
+                        banner.classList.remove('hidden');
                         if ("vibrate" in navigator) navigator.vibrate([500, 200, 500, 200]);
+
+                        // Auto hide after 3 seconds if not accepted/rejected
+                        clearTimeout(incomingCallTimeout);
+                        incomingCallTimeout = setTimeout(() => {
+                            banner.classList.add('hidden');
+                        }, 3000);
                     }
                 });
             });
@@ -979,6 +999,7 @@
 
         window.acceptIncomingCall = async function() {
             if (!incomingCallData) return;
+            clearTimeout(incomingCallTimeout);
             document.getElementById('incomingCallBanner').classList.add('hidden');
             document.getElementById('callPartnerName').innerText = incomingCallData.caller;
             document.getElementById('callStatusText').innerText = "Connecting...";
@@ -993,19 +1014,27 @@
                 document.getElementById('remoteVideo').srcObject = remoteStream;
 
                 localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
-                peerConnection.ontrack = e => e.streams[0].getTracks().forEach(t => remoteStream.addTrack(t));
+                peerConnection.ontrack = e => {
+                    e.streams[0].getTracks().forEach(track => remoteStream.addTrack(track));
+                };
 
                 const callDoc = doc(db, "calls", incomingCallData.id);
 
                 peerConnection.onicecandidate = async event => {
                     if (event.candidate) {
-                        await setDoc(callDoc, { answerCandidate: event.candidate.toJSON() }, { merge: true });
+                        await setDoc(callDoc, { answerCandidates: [event.candidate.toJSON()] }, { merge: true });
                     }
                 };
 
                 await peerConnection.setRemoteDescription(new RTCSessionDescription(incomingCallData.offer));
                 const answer = await peerConnection.createAnswer();
                 await peerConnection.setLocalDescription(answer);
+
+                if (incomingCallData.offerCandidates) {
+                    incomingCallData.offerCandidates.forEach(async c => {
+                        try { await peerConnection.addIceCandidate(new RTCIceCandidate(c)); } catch(e){}
+                    });
+                }
 
                 await updateDoc(callDoc, {
                     answer: { type: answer.type, sdp: answer.sdp },
@@ -1018,6 +1047,7 @@
         };
 
         window.rejectIncomingCall = async function() {
+            clearTimeout(incomingCallTimeout);
             if (incomingCallData) {
                 await updateDoc(doc(db, "calls", incomingCallData.id), { status: 'ended' });
             }
