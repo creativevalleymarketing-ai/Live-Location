@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Firebase Live Location & Messenger Chat</title>
+    <title>Firebase Live Location & Smooth Messenger Chat</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -34,6 +34,13 @@
             70% { box-shadow: 0 0 0 14px rgba(236, 72, 153, 0); }
             100% { box-shadow: 0 0 0 0 rgba(236, 72, 153, 0); }
         }
+        /* Custom Audio Player Styling */
+        audio::-webkit-media-controls-panel {
+            background-color: #fce7f3;
+        }
+        .dark audio::-webkit-media-controls-panel {
+            background-color: #374151;
+        }
     </style>
 </head>
 <body class="bg-pink-50 dark:bg-gray-900 text-gray-800 dark:text-gray-100 min-h-screen flex flex-col justify-between antialiased relative overflow-x-hidden transition-colors duration-200">
@@ -47,10 +54,10 @@
             </div>
             
             <div class="flex items-center gap-2">
-                <!-- Messenger Inbox Button -->
+                <!-- Messenger Inbox Button with Notification Badge -->
                 <button id="openInboxBtn" onclick="openMessengerInbox()" class="hidden relative bg-pink-100 dark:bg-gray-700 text-pink-700 dark:text-pink-300 p-2 rounded-full text-xs border border-pink-300 dark:border-gray-600 transition shadow-sm hover:bg-pink-200" title="Messenger Inbox">
                     <i class="fa-brands fa-facebook-messenger text-base"></i>
-                    <span id="unreadInboxBadge" class="hidden absolute -top-1 -right-1 bg-red-500 w-3.5 h-3.5 text-[9px] text-white flex items-center justify-center rounded-full border-2 border-white animate-pulse font-bold">!</span>
+                    <span id="unreadInboxBadge" class="hidden absolute -top-1 -right-1 bg-red-500 w-4 h-4 text-[9px] text-white flex items-center justify-center rounded-full border-2 border-white animate-pulse font-bold">!</span>
                 </button>
                 <button onclick="toggleDarkMode()" id="darkModeBtn" class="bg-pink-50 dark:bg-gray-700 text-lg px-2.5 py-1 rounded-full border border-pink-200 dark:border-gray-600 shadow-sm transition">🌙</button>
                 <button onclick="toggleLanguage()" id="langBtn" class="bg-pink-50 dark:bg-gray-700 text-xl px-2.5 py-1 rounded-full border border-pink-200 dark:border-gray-600 shadow-sm transition">🇲🇲</button>
@@ -235,12 +242,15 @@
 
             <!-- Typing & Recording Bar -->
             <form onsubmit="sendPrivateMessage(event)" class="p-2.5 bg-white dark:bg-gray-800 border-t border-gray-100 dark:border-gray-700 flex items-center gap-2">
-                <!-- Voice Record Button -->
-                <button type="button" id="voiceRecordBtn" onclick="toggleVoiceRecording()" class="text-pink-600 dark:text-pink-400 hover:bg-pink-50 dark:hover:bg-gray-700 p-2 rounded-full transition text-lg">
-                    <i class="fa-solid fa-microphone"></i>
-                </button>
+                <!-- Voice Record Button & Timer Indicator -->
+                <div class="flex items-center gap-1">
+                    <button type="button" id="voiceRecordBtn" onclick="toggleVoiceRecording()" class="text-pink-600 dark:text-pink-400 hover:bg-pink-50 dark:hover:bg-gray-700 p-2 rounded-full transition text-lg" title="Audio Message">
+                        <i class="fa-solid fa-microphone"></i>
+                    </button>
+                    <span id="recordTimer" class="hidden text-[10px] font-bold text-red-500 animate-pulse">00:00</span>
+                </div>
 
-                <input type="text" id="privateChatInput" oninput="handleTypingIndicator()" placeholder="Aa စာရိုက်ပါ..." required class="flex-1 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-pink-500 dark:text-white">
+                <input type="text" id="privateChatInput" oninput="handleTypingIndicator()" placeholder="Aa စာရိုက်ပါ..." class="flex-1 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-pink-500 dark:text-white">
 
                 <button type="submit" class="bg-pink-600 hover:bg-pink-700 text-white w-9 h-9 rounded-full font-bold text-sm shadow-md transition flex items-center justify-center shrink-0">
                     <i class="fa-solid fa-paper-plane text-xs"></i>
@@ -288,6 +298,11 @@
         let mediaRecorder = null;
         let audioChunks = [];
         let isRecording = false;
+        let recordTimerInterval = null;
+        let recordSeconds = 0;
+        let globalUsersUnsub = null;
+        let globalLocsUnsub = null;
+        let inboxListeners = [];
 
         const roleIcons = { Boy: '👦', Girl: '👧', Dad: '👨', Mom: '👩', Uncle: '🧔', Aunty: '👵' };
 
@@ -435,12 +450,16 @@
 
             initMap();
             listenToUsersAndLocations();
+            setupInboxGlobalNotification();
 
             if (localStorage.getItem('isSharing') === 'true') startSharing();
         }
 
         window.logout = function() {
             stopSharing();
+            if (globalUsersUnsub) globalUsersUnsub();
+            if (globalLocsUnsub) globalLocsUnsub();
+            inboxListeners.forEach(unsub => unsub());
             localStorage.removeItem('firebaseUserSession');
             localStorage.removeItem('isSharing');
             currentUser = null;
@@ -512,13 +531,14 @@
         let activeLocationsCache = {};
 
         function listenToUsersAndLocations() {
-            onSnapshot(collection(db, "users"), (snap) => {
+            globalUsersUnsub = onSnapshot(collection(db, "users"), (snap) => {
                 registeredUsersCache = {};
                 snap.forEach(d => { registeredUsersCache[d.id] = d.data(); });
                 renderUserListAndMarkers();
+                setupInboxGlobalNotification();
             });
 
-            onSnapshot(collection(db, "locations"), (snap) => {
+            globalLocsUnsub = onSnapshot(collection(db, "locations"), (snap) => {
                 activeLocationsCache = {};
                 snap.forEach(d => { activeLocationsCache[d.id] = d.data(); });
                 renderUserListAndMarkers();
@@ -581,6 +601,33 @@
             document.getElementById('userList').innerHTML = listHTML || `<p class="text-xs text-gray-400 text-center py-4">အသုံးပြုသူများ မရှိသေးပါ။</p>`;
         }
 
+        // Setup Real-time Global Unread Notification Listener for Messenger Icon
+        function setupInboxGlobalNotification() {
+            if (!currentUser) return;
+            inboxListeners.forEach(unsub => unsub());
+            inboxListeners = [];
+
+            Object.values(registeredUsersCache).forEach(u => {
+                if (u.username.toLowerCase() !== currentUser.username.toLowerCase()) {
+                    const chatId = [currentUser.username.toLowerCase(), u.username.toLowerCase()].sort().join('_');
+                    const unsub = onSnapshot(collection(db, "chats", chatId, "messages"), (snap) => {
+                        let hasUnread = false;
+                        snap.forEach(mDoc => {
+                            let m = mDoc.data();
+                            if (m.receiver === currentUser.username && m.status === 'delivered') {
+                                hasUnread = true;
+                            }
+                        });
+                        if (hasUnread) {
+                            document.getElementById('unreadInboxBadge').classList.remove('hidden');
+                            if ("vibrate" in navigator) navigator.vibrate([200, 100, 200]);
+                        }
+                    });
+                    inboxListeners.push(unsub);
+                }
+            });
+        }
+
         window.viewUserRoute = function(targetLat, targetLon, targetName) {
             if (currentPolyline) map.removeLayer(currentPolyline);
             if (myCurrentPos) {
@@ -630,7 +677,6 @@
             inboxBox.innerHTML = html || `<p class="text-center text-xs text-gray-400 py-6">မက်ဆေ့ချ် မရှိသေးပါ။</p>`;
         }
 
-        // Typing Indicator Sync
         window.handleTypingIndicator = function() {
             if (!currentChatPartner || !currentUser) return;
             const chatId = [currentUser.username.toLowerCase(), currentChatPartner.toLowerCase()].sort().join('_');
@@ -655,7 +701,6 @@
             const chatId = [currentUser.username.toLowerCase(), partnerName.toLowerCase()].sort().join('_');
             const chatRef = collection(db, "chats", chatId, "messages");
 
-            // Listen to messages
             chatUnsubscribe = onSnapshot(chatRef, (snapshot) => {
                 let msgs = [];
                 snapshot.forEach(docSnap => {
@@ -673,25 +718,33 @@
                     let statusText = isSelf ? (m.status === 'seen' ? '<span class="text-sky-400 font-bold">✓✓ Seen</span>' : '<span class="text-gray-300">✓ Delivered</span>') : '';
                     let rxHtml = m.reaction ? `<span class="text-xs bg-white dark:bg-gray-800 rounded-full px-1 shadow border border-gray-100">${m.reaction}</span>` : '';
 
+                    // Formatted Timestamp (e.g. 10:15 AM)
+                    const timeStr = m.timestamp ? new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+
                     let bodyHtml = '';
                     if (m.type === 'audio') {
-                        bodyHtml = `<audio controls src="${m.audioUrl}" class="h-8 w-44"></audio>`;
+                        bodyHtml = `<audio controls src="${m.audioUrl}" class="h-8 w-48 rounded-lg"></audio>`;
                     } else {
                         bodyHtml = `<div>${m.text}</div>`;
                     }
 
                     html += `
-                        <div class="flex flex-col ${isSelf ? 'items-end' : 'items-start'} group relative">
+                        <div class="flex flex-col ${isSelf ? 'items-end' : 'items-start'} group relative my-1">
                             <div class="max-w-[80%] p-2.5 rounded-2xl text-xs font-semibold ${isSelf ? 'bg-pink-600 text-white rounded-tr-none' : 'bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 rounded-tl-none border shadow-sm'}">
                                 ${bodyHtml}
                                 ${rxHtml}
                             </div>
-                            <div class="flex items-center gap-1.5 mt-0.5 text-[9px] text-gray-400">
+                            
+                            <!-- Hidden Hover Actions & Timestamp -->
+                            <div class="flex items-center gap-2 mt-0.5 text-[9px] text-gray-400">
+                                <span>${timeStr}</span>
                                 ${statusText}
-                                <!-- Quick Reactions -->
-                                <button onclick="reactMessage('${m.id}', '❤️')" class="hover:scale-125 transition">❤️</button>
-                                <button onclick="reactMessage('${m.id}', '👍')" class="hover:scale-125 transition">👍</button>
-                                ${isSelf ? `<button onclick="unsendMessage('${m.id}')" class="text-red-400 hover:underline">Unsend</button>` : ''}
+                                <!-- Hover Actions Bar -->
+                                <div class="hidden group-hover:flex items-center gap-1.5 bg-white dark:bg-gray-800 px-2 py-0.5 rounded-full shadow border border-gray-100 dark:border-gray-600">
+                                    <button onclick="reactMessage('${m.id}', '❤️')" class="hover:scale-125 transition">❤️</button>
+                                    <button onclick="reactMessage('${m.id}', '👍')" class="hover:scale-125 transition">👍</button>
+                                    ${isSelf ? `<button onclick="unsendMessage('${m.id}')" class="text-red-400 hover:underline">Unsend</button>` : ''}
+                                </div>
                             </div>
                         </div>
                     `;
@@ -701,7 +754,6 @@
                 box.scrollTop = box.scrollHeight;
             });
 
-            // Listen to Typing status
             onSnapshot(doc(db, "chats", chatId, "status", partnerName.toLowerCase()), (docSnap) => {
                 const statusEl = document.getElementById('chatTypingStatus');
                 if (docSnap.exists() && docSnap.data().typing) {
@@ -735,16 +787,23 @@
             });
         };
 
-        // Voice Recording Toggle
+        // Smooth Voice Recording Toggle with Live Timer
         window.toggleVoiceRecording = async function() {
             const btn = document.getElementById('voiceRecordBtn');
+            const timerEl = document.getElementById('recordTimer');
+
             if (!isRecording) {
                 try {
                     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                    mediaRecorder = new MediaRecorder(stream);
+                    mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
                     audioChunks = [];
+                    recordSeconds = 0;
+
                     mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
                     mediaRecorder.onstop = async () => {
+                        clearInterval(recordTimerInterval);
+                        timerEl.classList.add('hidden');
+
                         const blob = new Blob(audioChunks, { type: 'audio/webm' });
                         const reader = new FileReader();
                         reader.readAsDataURL(blob);
@@ -761,9 +820,19 @@
                             });
                         };
                     };
+
                     mediaRecorder.start();
                     isRecording = true;
                     btn.classList.add('animate-pulse', 'text-red-500');
+                    timerEl.classList.remove('hidden');
+
+                    recordTimerInterval = setInterval(() => {
+                        recordSeconds++;
+                        const mins = String(Math.floor(recordSeconds / 60)).padStart(2, '0');
+                        const secs = String(recordSeconds % 60).padStart(2, '0');
+                        timerEl.innerText = `${mins}:${secs}`;
+                    }, 1000);
+
                 } catch (err) { alert("မိုက်ခရိုဖုန်း ခွင့်ပြုချက်မရရှိပါ"); }
             } else {
                 mediaRecorder.stop();
