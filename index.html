@@ -129,7 +129,7 @@
         </div>
     </nav>
 
-    <!-- Notification / Proximity / SafeZone Alert Toast -->
+    <!-- Notification / Proximity Alert Toast -->
     <div id="proximityAlert" class="hidden fixed top-16 left-1/2 -translate-x-1/2 z-[2000] w-11/12 max-w-md bg-gradient-to-r from-pink-600 to-rose-600 text-white p-4 rounded-3xl shadow-2xl border-2 border-white/20 flex items-center gap-3 animate-bounce">
         <div class="text-3xl" id="alertIcon">⚠️</div>
         <div class="flex-1">
@@ -272,7 +272,7 @@
                         <div class="flex items-center gap-2 mt-0.5 text-[10px] text-slate-500 dark:text-slate-400">
                             <span><i class="fa-solid fa-gauge-high text-pink-500"></i> <span id="speedDisplay">0 km/h</span></span>
                             <span>|</span>
-                            <span><i id="batteryIcon" class="fa-solid fa-battery-full text-emerald-500"></i> <span id="batteryDisplay">100%</span></span>
+                            <span><i id="batteryIcon" class="fa-solid fa-battery-full text-emerald-500"></i> <span id="batteryDisplay">--%</span></span>
                         </div>
                     </div>
                 </div>
@@ -285,20 +285,6 @@
                         <div id="weatherNextHr" class="text-[9px] text-slate-500 dark:text-slate-400 font-semibold">1h: --°C</div>
                     </div>
                 </div>
-            </div>
-
-            <!-- Safe Zone / Geofence Quick Panel -->
-            <div class="glass-panel p-2.5 rounded-2xl border border-pink-100 dark:border-slate-800 flex items-center justify-between text-xs">
-                <div class="flex items-center gap-2">
-                    <span class="text-base">🛡️</span>
-                    <div>
-                        <div class="font-bold text-[11px] text-slate-700 dark:text-slate-300" data-i18n="safeZoneTitle">Safe Zone (လုံခြုံရေးဇုန်)</div>
-                        <div id="safeZoneStatus" class="text-[10px] text-slate-400" data-i18n="safeZoneNotSet">မသတ်မှတ်ရသေးပါ</div>
-                    </div>
-                </div>
-                <button onclick="setSafeZoneHere()" class="bg-slate-100 dark:bg-slate-800 hover:bg-pink-100 dark:hover:bg-slate-700 text-pink-700 dark:text-pink-300 px-3 py-1.5 rounded-xl font-bold text-[11px] transition active:scale-95" data-i18n="btnSetSafeZone">
-                    ဒီနေရာကိုသတ်မှတ်မည်
-                </button>
             </div>
 
             <!-- Map Card with Search Box -->
@@ -397,8 +383,7 @@
         let watchId = null;
         let map = null;
         let markers = {};
-        let safeZoneCircle = null;
-        let safeZonePoint = JSON.parse(localStorage.getItem('safeZonePoint')) || null;
+        let userCircles = {}; // 300m Radius Proximity Circles
         let currentPolyline = null;
         let myCurrentPos = null;
         let previousPos = null;
@@ -406,7 +391,7 @@
         let batteryLevel = 100;
         let activeChatTarget = null;
         let alertedUsers = new Set();
-        let safeZoneAlertFired = false;
+        let chatUnsubscribe = null;
 
         const roleIcons = { Boy: '👦', Girl: '👧', Dad: '👨', Mom: '👩', Uncle: '🧔', Aunty: '👵' };
 
@@ -426,10 +411,8 @@
                 errUsernameTaken: "ဤ Username ကို အသုံးပြုပြီးသားဖြစ်ပါသည်။ အခြားတစ်ခုသုံးပါ။",
                 errInvalidLogin: "Username သို့မဟုတ် လျှို့ဝှက်နံပါတ် မှားယွင်းနေပါသည်။",
                 errUserNotFound: "အကောင့်မရှိသေးပါ။ ကျေးဇူးပြု၍ Sign Up လုပ်ပါ။",
-                alertTitle: "သတိပေးချက် ⚠️", alertMeetSoon: "အနီးနားသို့ သိပ်မကြာခင် တွေ့ဆုံတော့မည်ဖြစ်သည်!",
-                targetUser: "အကွာအဝေး:", btnReplayHearts: "အသည်းများပြန်လွှတ်မည်",
-                safeZoneTitle: "Safe Zone (လုံခြုံရေးဇုန်)", safeZoneNotSet: "မသတ်မှတ်ရသေးပါ",
-                btnSetSafeZone: "ဒီနေရာကိုသတ်မှတ်မည်", safeZoneAlertExit: "သတိထားပါ! သင့် Safe Zone ပြင်ပသို့ ရောက်ရှိနေပါသည်။"
+                alertTitle: "သတိပေးချက် ⚠️", alertMeetSoon: "300m ဧရိယာစက်ဝိုင်းအတွင်း ထိစပ်နီးကပ်နေပါပြီ!",
+                targetUser: "အကွာအဝေး:", btnReplayHearts: "အသည်းများပြန်လွှတ်မည်"
             },
             en: {
                 tabLogin: "Login", tabSignup: "Sign Up",
@@ -445,10 +428,8 @@
                 errUsernameTaken: "Username is already taken. Please choose another.",
                 errInvalidLogin: "Invalid username or password.",
                 errUserNotFound: "Account does not exist. Please Sign Up.",
-                alertTitle: "Alert ⚠️", alertMeetSoon: "You are about to meet soon!",
-                targetUser: "Target:", btnReplayHearts: "Replay Hearts",
-                safeZoneTitle: "Safe Zone", safeZoneNotSet: "Not set yet",
-                btnSetSafeZone: "Set Safe Zone Here", safeZoneAlertExit: "Warning! You have exited your Safe Zone."
+                alertTitle: "Alert ⚠️", alertMeetSoon: "300m proximity circles are touching/overlapping!",
+                targetUser: "Target:", btnReplayHearts: "Replay Hearts"
             }
         };
 
@@ -469,15 +450,13 @@
             applyTheme();
         };
 
-        // Battery Status Monitoring
+        // Fixed Battery Status Monitoring without hardcoded fallback overrides
         function initBatteryMonitor() {
             if ('getBattery' in navigator) {
                 navigator.getBattery().then(battery => {
                     updateBatteryUI(battery.level * 100);
                     battery.addEventListener('levelchange', () => updateBatteryUI(battery.level * 100));
                 });
-            } else {
-                updateBatteryUI(88); // Fallback mock value
             }
         }
 
@@ -683,58 +662,7 @@
             }).addTo(map);
 
             setTimeout(() => map.invalidateSize(), 300);
-
-            if (safeZonePoint) {
-                renderSafeZoneCircle(safeZonePoint.lat, safeZonePoint.lon);
-            }
-
             fetchWeather(16.8661, 96.1951);
-        }
-
-        // Safe Zone / Geofencing Logic
-        window.setSafeZoneHere = function() {
-            if (!myCurrentPos) {
-                if (navigator.geolocation) {
-                    navigator.geolocation.getCurrentPosition(pos => {
-                        const lat = pos.coords.latitude;
-                        const lon = pos.coords.longitude;
-                        saveSafeZone(lat, lon);
-                    });
-                }
-            } else {
-                saveSafeZone(myCurrentPos.lat, myCurrentPos.lon);
-            }
-        };
-
-        function saveSafeZone(lat, lon) {
-            safeZonePoint = { lat, lon, radius: 300 }; // 300 meters
-            localStorage.setItem('safeZonePoint', JSON.stringify(safeZonePoint));
-            renderSafeZoneCircle(lat, lon);
-            document.getElementById('safeZoneStatus').innerText = ` Radius: 300m Active`;
-        }
-
-        function renderSafeZoneCircle(lat, lon) {
-            if (safeZoneCircle) map.removeLayer(safeZoneCircle);
-            safeZoneCircle = L.circle([lat, lon], {
-                color: '#ec4899',
-                fillColor: '#fbcfe8',
-                fillOpacity: 0.25,
-                radius: 300
-            }).addTo(map);
-            document.getElementById('safeZoneStatus').innerText = `Radius: 300m Active`;
-        }
-
-        function checkSafeZoneExit(lat, lon) {
-            if (!safeZonePoint) return;
-            const distKm = calculateHaversineDistance(lat, lon, safeZonePoint.lat, safeZonePoint.lon);
-            const distMeters = distKm * 1000;
-
-            if (distMeters > safeZonePoint.radius && !safeZoneAlertFired) {
-                safeZoneAlertFired = true;
-                showNotificationAlert("⚠️ Safe Zone Alert", i18n[currentLang].safeZoneAlertExit, "🚨");
-            } else if (distMeters <= safeZonePoint.radius) {
-                safeZoneAlertFired = false;
-            }
         }
 
         // Recenter Map
@@ -845,7 +773,8 @@
             document.getElementById('proximityAlert').classList.remove('hidden');
 
             if ("vibrate" in navigator) {
-                navigator.vibrate([300, 100, 300, 100, 400]);
+                // 3 Seconds Vibration as requested
+                navigator.vibrate([3000]);
             }
         }
 
@@ -853,7 +782,7 @@
             document.getElementById('proximityAlert').classList.add('hidden');
         };
 
-        // Real-time Locations Listener
+        // Real-time Locations Listener & 300m Circle Overlap Detection
         function listenToFirestore() {
             if (!db) return;
             onSnapshot(collection(db, "locations"), (snapshot) => {
@@ -871,11 +800,17 @@
                         const iconSymbol = roleIcons[data.role] || '👦';
                         const isSelf = currentUser && id === currentUser.username.toLowerCase();
 
+                        // 300m Proximity Circle Intersection Logic (Centers <= 600m)
                         if (!isSelf && myCurrentPos) {
-                            const dist = calculateHaversineDistance(myCurrentPos.lat, myCurrentPos.lon, data.latitude, data.longitude);
-                            if (dist <= 0.15 && !alertedUsers.has(data.username)) { // 150m Proximity
+                            const distKm = calculateHaversineDistance(myCurrentPos.lat, myCurrentPos.lon, data.latitude, data.longitude);
+                            const distMeters = distKm * 1000;
+
+                            // If circles touch or overlap (distance <= 600m)
+                            if (distMeters <= 600 && !alertedUsers.has(data.username)) {
                                 alertedUsers.add(data.username);
                                 showNotificationAlert(i18n[currentLang].alertTitle, `${data.username} - ${i18n[currentLang].alertMeetSoon}`);
+                            } else if (distMeters > 600) {
+                                alertedUsers.delete(data.username);
                             }
                         }
 
@@ -892,6 +827,7 @@
                             iconAnchor: [18, 18]
                         });
 
+                        // Marker Update
                         if (markers[id]) {
                             markers[id].setLatLng([data.latitude, data.longitude]);
                             markers[id].setIcon(customIcon);
@@ -899,6 +835,18 @@
                             markers[id] = L.marker([data.latitude, data.longitude], { icon: customIcon })
                                 .addTo(map)
                                 .bindPopup(`<b>📍 ${data.username}</b><br/><span style="font-size:10px">${data.role} | 🔋 ${data.battery || 100}%</span>`);
+                        }
+
+                        // 300m Radius Semi-Transparent Pink Circle
+                        if (userCircles[id]) {
+                            userCircles[id].setLatLng([data.latitude, data.longitude]);
+                        } else {
+                            userCircles[id] = L.circle([data.latitude, data.longitude], {
+                                color: '#ec4899',
+                                fillColor: '#fbcfe8',
+                                fillOpacity: 0.25,
+                                radius: 300
+                            }).addTo(map);
                         }
 
                         listHTML += `
@@ -925,10 +873,17 @@
                     }
                 });
 
+                // Cleanup inactive markers & 300m circles
                 Object.keys(markers).forEach((id) => {
                     if (!activeIds.has(id)) {
                         map.removeLayer(markers[id]);
                         delete markers[id];
+                    }
+                });
+                Object.keys(userCircles).forEach((id) => {
+                    if (!activeIds.has(id)) {
+                        map.removeLayer(userCircles[id]);
+                        delete userCircles[id];
                     }
                 });
 
@@ -937,20 +892,24 @@
             });
         }
 
-        // Chat Feature Functions
+        // Global Chat Feature (Works whether sharing location or not)
         window.openChatModal = function(targetUsername) {
             activeChatTarget = targetUsername;
             document.getElementById('chatTargetTitle').innerText = `Chat with ${targetUsername}`;
             document.getElementById('chatModal').classList.remove('hidden');
 
+            if (chatUnsubscribe) {
+                chatUnsubscribe();
+            }
+
             if (db) {
-                onSnapshot(collection(db, "chats"), (snapshot) => {
+                chatUnsubscribe = onSnapshot(collection(db, "chats"), (snapshot) => {
                     let chatHTML = '';
                     snapshot.forEach(docSnap => {
                         const m = docSnap.data();
-                        const isMine = m.sender === currentUser.username;
                         if ((m.sender === currentUser.username && m.receiver === activeChatTarget) ||
                             (m.sender === activeChatTarget && m.receiver === currentUser.username)) {
+                            const isMine = m.sender === currentUser.username;
                             chatHTML += `
                                 <div class="flex ${isMine ? 'justify-end' : 'justify-start'}">
                                     <div class="${isMine ? 'bg-pink-600 text-white' : 'bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100'} p-2.5 rounded-2xl max-w-[75%] text-xs shadow-sm">
@@ -970,6 +929,10 @@
 
         window.closeChatModal = function() {
             document.getElementById('chatModal').classList.add('hidden');
+            if (chatUnsubscribe) {
+                chatUnsubscribe();
+                chatUnsubscribe = null;
+            }
             activeChatTarget = null;
         };
 
@@ -1047,8 +1010,6 @@
                 document.getElementById('activityBadge').innerText = activity;
 
                 myCurrentPos = { lat, lon };
-
-                checkSafeZoneExit(lat, lon);
 
                 if (db) {
                     await setDoc(doc(db, "locations", currentUser.username.toLowerCase()), {
