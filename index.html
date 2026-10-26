@@ -329,6 +329,7 @@
         let globalUsersUnsub = null;
         let globalLocsUnsub = null;
         let inboxListeners = [];
+        let alertedUsers = new Set(); // 300m အတွင်း ရောက်ဖူးသည့် User များကို စာရင်းမှတ်ထားရန်
 
         const roleIcons = { Boy: '👦', Girl: '👧', Dad: '👨', Mom: '👩', Uncle: '🧔', Aunty: '👵' };
 
@@ -589,7 +590,7 @@
         }
 
         function calculateHaversineDistance(lat1, lon1, lat2, lon2) {
-            const R = 6371;
+            const R = 6371; // Earth radius in KM
             const dLat = (lat2 - lat1) * Math.PI / 180;
             const dLon = (lon2 - lon1) * Math.PI / 180;
             const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon/2) * Math.sin(dLon/2);
@@ -630,14 +631,24 @@
 
                 if (isSharingLoc) {
                     activeIds.add(id);
+                    
+                    // PROXIMITY ALERT LOGIC: မိမိရော အခြား User ပါ Location share ထားပြီး 300m (0.3km) အတွင်း ဝင်လာမှသာ Alert ပေါ်စေရန်
                     if (!isSelf && myCurrentPos) {
                         const dist = calculateHaversineDistance(myCurrentPos.lat, myCurrentPos.lon, locData.latitude, locData.longitude);
-                        if (dist <= 0.60) {
-                            const alertBox = document.getElementById('proximityAlert');
-                            // Updated notification message format as requested
-                            document.getElementById('alertMessage').innerText = `${userData.username} နှင့် သိပ်မကြာခင် တွေ့ဆုံတော့မည်!`;
-                            alertBox.classList.remove('hidden');
-                            setTimeout(() => alertBox.classList.add('hidden'), 3000);
+                        
+                        // 0.3 km (300 meters) အတွင်းရောက်လျှင် Alert ပြမည်
+                        if (dist <= 0.30) {
+                            if (!alertedUsers.has(id)) { // တစ်ကြိမ်သာ သတိပေးချက် ပြရန်
+                                alertedUsers.add(id);
+                                const alertBox = document.getElementById('proximityAlert');
+                                document.getElementById('alertMessage').innerText = `${userData.username} နှင့် သိပ်မကြာခင် တွေ့ဆုံတော့မည်!`;
+                                alertBox.classList.remove('hidden');
+                                if ("vibrate" in navigator) navigator.vibrate([300, 100, 300]); // Vibrates when within 300m
+                                setTimeout(() => alertBox.classList.add('hidden'), 3000);
+                            }
+                        } else {
+                            // 300m ထက် ဝေးသွားလျှင် စာရင်းမှ ပြန်ထုတ်မည် (နောက်တစ်ကြိမ် နီးကပ်လာပါက Alert ပြန်ပြနိုင်ရန်)
+                            alertedUsers.delete(id);
                         }
                     }
 
@@ -649,6 +660,8 @@
 
                     if (markers[id]) { markers[id].setLatLng([locData.latitude, locData.longitude]); markers[id].setIcon(customIcon); }
                     else markers[id] = L.marker([locData.latitude, locData.longitude], { icon: customIcon }).addTo(map);
+                } else {
+                    alertedUsers.delete(id);
                 }
 
                 listHTML += `
