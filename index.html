@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Firebase Live Location & Chat</title>
+    <title>Firebase Live Location & Private Chat</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -12,13 +12,7 @@
             theme: {
                 extend: {
                     colors: {
-                        brand: {
-                            50: '#fdf2f8',
-                            100: '#fce7f3',
-                            500: '#ec4899',
-                            600: '#db2777',
-                            700: '#be185d'
-                        }
+                        brand: { 50: '#fdf2f8', 100: '#fce7f3', 500: '#ec4899', 600: '#db2777', 700: '#be185d' }
                     }
                 }
             }
@@ -32,27 +26,14 @@
         @import url('https://fonts.googleapis.com/css2?family=Pyidaungsu:wght@400;700&family=Inter:wght@400;600;700&family=Pacifico&display=swap');
         body { font-family: 'Pyidaungsu', 'Inter', sans-serif; touch-action: manipulation; }
         #map { height: 100%; width: 100%; border-radius: 1rem; z-index: 1; }
-        .icon-btn.active {
-            border-color: #ec4899;
-            background-color: #fce7f3;
-            color: #be185d;
-        }
-        .dark .icon-btn.active {
-            border-color: #f472b6;
-            background-color: #831843;
-            color: #fbcfe8;
-        }
-        /* Custom Leaflet Marker Pulse */
-        .user-marker-pulse {
-            border-radius: 50%;
-            animation: pulse-ring 2s infinite;
-        }
+        .icon-btn.active { border-color: #ec4899; background-color: #fce7f3; color: #be185d; }
+        .dark .icon-btn.active { border-color: #f472b6; background-color: #831843; color: #fbcfe8; }
+        .user-marker-pulse { border-radius: 50%; animation: pulse-ring 2s infinite; }
         @keyframes pulse-ring {
             0% { box-shadow: 0 0 0 0 rgba(236, 72, 153, 0.7); }
             70% { box-shadow: 0 0 0 14px rgba(236, 72, 153, 0); }
             100% { box-shadow: 0 0 0 0 rgba(236, 72, 153, 0); }
         }
-        .love-font { font-family: 'Pacifico', cursive, 'Pyidaungsu', sans-serif; }
     </style>
 </head>
 <body class="bg-pink-50 dark:bg-gray-900 text-gray-800 dark:text-gray-100 min-h-screen flex flex-col justify-between antialiased relative overflow-x-hidden transition-colors duration-200">
@@ -66,19 +47,8 @@
             </div>
             
             <div class="flex items-center gap-2">
-                <!-- Open Global Chat Modal Button -->
-                <button id="openChatBtn" onclick="toggleChatModal(true)" class="hidden relative bg-pink-100 dark:bg-gray-700 text-pink-700 dark:text-pink-300 p-2 rounded-full text-sm border border-pink-300 dark:border-gray-600 transition shadow-sm hover:bg-pink-200" title="Open Global Chat">
-                    💬 <span id="unreadChatBadge" class="hidden absolute -top-1 -right-1 bg-red-500 w-3 h-3 rounded-full border-2 border-white dark:border-gray-800 animate-pulse"></span>
-                </button>
-                <!-- Dark Mode Toggle Button -->
-                <button onclick="toggleDarkMode()" id="darkModeBtn" class="bg-pink-50 dark:bg-gray-700 text-lg px-2.5 py-1 rounded-full border border-pink-200 dark:border-gray-600 shadow-sm transition">
-                    🌙
-                </button>
-                <!-- Flag-based Language Switcher -->
-                <button onclick="toggleLanguage()" id="langBtn" class="bg-pink-50 dark:bg-gray-700 text-xl px-2.5 py-1 rounded-full border border-pink-200 dark:border-gray-600 shadow-sm transition">
-                    🇲🇲
-                </button>
-                <!-- Logout Button -->
+                <button onclick="toggleDarkMode()" id="darkModeBtn" class="bg-pink-50 dark:bg-gray-700 text-lg px-2.5 py-1 rounded-full border border-pink-200 dark:border-gray-600 shadow-sm transition">🌙</button>
+                <button onclick="toggleLanguage()" id="langBtn" class="bg-pink-50 dark:bg-gray-700 text-xl px-2.5 py-1 rounded-full border border-pink-200 dark:border-gray-600 shadow-sm transition">🇲🇲</button>
                 <button onclick="logout()" id="logoutBtn" class="hidden text-xs bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-200 px-3 py-1.5 rounded-full font-bold transition flex items-center gap-1">
                     <i class="fa-solid fa-right-from-bracket"></i> <span data-i18n="logout">ထွက်မည်</span>
                 </button>
@@ -86,12 +56,12 @@
         </div>
     </nav>
 
-    <!-- Notification Toast / Proximity Alert Modal -->
+    <!-- Proximity Alert Notification -->
     <div id="proximityAlert" class="hidden fixed top-16 left-1/2 -translate-x-1/2 z-[2000] w-11/12 max-w-md bg-pink-600 text-white p-4 rounded-2xl shadow-2xl border-2 border-white flex items-center gap-3 animate-bounce">
         <div class="text-3xl">⚠️</div>
         <div class="flex-1">
             <h4 class="font-bold text-sm" data-i18n="alertTitle">နီးကပ်မှု သတိပေးချက်</h4>
-            <p id="alertMessage" class="text-xs font-semibold">300m ဧရိယာအချင်းချင်း ထိမိပါသည်။ သိပ်မကြာခင်တွေ့ဆုံတော့မည်!</p>
+            <p id="alertMessage" class="text-xs font-semibold">300m ဧရိယာအချင်းချင်း ထိမိပါသည်။ သိပ်မကြာခင် တွေ့ဆုံတော့မည်!</p>
         </div>
         <button onclick="dismissAlert()" class="text-white bg-pink-800 hover:bg-pink-900 px-2.5 py-1 rounded-xl text-xs font-bold">OK</button>
     </div>
@@ -99,22 +69,19 @@
     <!-- MAIN CONTAINER -->
     <main class="max-w-md w-full mx-auto p-4 flex-1 flex flex-col justify-center">
 
-        <!-- ================= PAGE 1: SIGN UP & LOGIN SCREEN ================= -->
+        <!-- AUTH SCREEN -->
         <section id="authScreen" class="bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-xl border border-pink-100 dark:border-gray-700 flex flex-col gap-4 my-auto transition-colors">
-            <!-- Auth Tab Switcher -->
             <div class="flex bg-gray-100 dark:bg-gray-700 p-1 rounded-2xl">
                 <button id="tabLogin" onclick="switchAuthTab('login')" class="flex-1 py-2 rounded-xl text-xs font-bold transition bg-white dark:bg-gray-800 text-pink-700 dark:text-pink-400 shadow-sm" data-i18n="tabLogin">အကောင့်ဝင်ပါ</button>
                 <button id="tabSignup" onclick="switchAuthTab('signup')" class="flex-1 py-2 rounded-xl text-xs font-bold text-gray-500 dark:text-gray-400 transition" data-i18n="tabSignup">အကောင့်သစ်ဖွင့်ပါ</button>
             </div>
 
-            <!-- Header -->
             <div class="text-center space-y-1">
                 <h2 id="authTitle" class="text-xl font-bold text-pink-700 dark:text-pink-400" data-i18n="welcomeLogin">အကောင့်ဝင်ပါ</h2>
                 <p id="authSubtitle" class="text-xs text-gray-400 dark:text-gray-400" data-i18n="subLogin">Live Location စတင်ရန် သင့်အချက်အလက်များကို ဖြည့်သွင်းပါ</p>
             </div>
 
             <form id="authForm" onsubmit="handleAuthSubmit(event)" class="space-y-4">
-                <!-- Username -->
                 <div>
                     <label class="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-1" data-i18n="labelUsername">အသုံးပြုသူ အမည် (Username)</label>
                     <div class="relative">
@@ -123,7 +90,6 @@
                     </div>
                 </div>
 
-                <!-- Password -->
                 <div>
                     <label class="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-1" data-i18n="labelPassword">လျှို့ဝှက်နံပါတ်</label>
                     <div class="relative">
@@ -132,50 +98,27 @@
                     </div>
                 </div>
 
-                <!-- Icon Role Selector -->
                 <div>
                     <label class="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-2" data-i18n="labelIcon">Icon ရွေးချယ်ရန်</label>
                     <div class="grid grid-cols-3 gap-2" id="roleSelector">
-                        <button type="button" onclick="selectRole('Boy')" class="icon-btn active p-2 border border-gray-200 dark:border-gray-600 rounded-2xl flex flex-col items-center gap-1 transition">
-                            <span class="text-2xl">👦</span>
-                            <span class="text-[11px] font-bold" data-i18n="roleBoy">Boy</span>
-                        </button>
-                        <button type="button" onclick="selectRole('Girl')" class="icon-btn p-2 border border-gray-200 dark:border-gray-600 rounded-2xl flex flex-col items-center gap-1 transition">
-                            <span class="text-2xl">👧</span>
-                            <span class="text-[11px] font-bold" data-i18n="roleGirl">Girl</span>
-                        </button>
-                        <button type="button" onclick="selectRole('Dad')" class="icon-btn p-2 border border-gray-200 dark:border-gray-600 rounded-2xl flex flex-col items-center gap-1 transition">
-                            <span class="text-2xl">👨</span>
-                            <span class="text-[11px] font-bold" data-i18n="roleDad">Dad</span>
-                        </button>
-                        <button type="button" onclick="selectRole('Mom')" class="icon-btn p-2 border border-gray-200 dark:border-gray-600 rounded-2xl flex flex-col items-center gap-1 transition">
-                            <span class="text-2xl">👩</span>
-                            <span class="text-[11px] font-bold" data-i18n="roleMom">Mom</span>
-                        </button>
-                        <button type="button" onclick="selectRole('Uncle')" class="icon-btn p-2 border border-gray-200 dark:border-gray-600 rounded-2xl flex flex-col items-center gap-1 transition">
-                            <span class="text-2xl">🧔</span>
-                            <span class="text-[11px] font-bold" data-i18n="roleUncle">Uncle</span>
-                        </button>
-                        <button type="button" onclick="selectRole('Aunty')" class="icon-btn p-2 border border-gray-200 dark:border-gray-600 rounded-2xl flex flex-col items-center gap-1 transition">
-                            <span class="text-2xl">👵</span>
-                            <span class="text-[11px] font-bold" data-i18n="roleAunty">Aunty</span>
-                        </button>
+                        <button type="button" onclick="selectRole('Boy')" class="icon-btn active p-2 border border-gray-200 dark:border-gray-600 rounded-2xl flex flex-col items-center gap-1 transition"><span class="text-2xl">👦</span><span class="text-[11px] font-bold">Boy</span></button>
+                        <button type="button" onclick="selectRole('Girl')" class="icon-btn p-2 border border-gray-200 dark:border-gray-600 rounded-2xl flex flex-col items-center gap-1 transition"><span class="text-2xl">👧</span><span class="text-[11px] font-bold">Girl</span></button>
+                        <button type="button" onclick="selectRole('Dad')" class="icon-btn p-2 border border-gray-200 dark:border-gray-600 rounded-2xl flex flex-col items-center gap-1 transition"><span class="text-2xl">👨</span><span class="text-[11px] font-bold">Dad</span></button>
+                        <button type="button" onclick="selectRole('Mom')" class="icon-btn p-2 border border-gray-200 dark:border-gray-600 rounded-2xl flex flex-col items-center gap-1 transition"><span class="text-2xl">👩</span><span class="text-[11px] font-bold">Mom</span></button>
+                        <button type="button" onclick="selectRole('Uncle')" class="icon-btn p-2 border border-gray-200 dark:border-gray-600 rounded-2xl flex flex-col items-center gap-1 transition"><span class="text-2xl">🧔</span><span class="text-[11px] font-bold">Uncle</span></button>
+                        <button type="button" onclick="selectRole('Aunty')" class="icon-btn p-2 border border-gray-200 dark:border-gray-600 rounded-2xl flex flex-col items-center gap-1 transition"><span class="text-2xl">👵</span><span class="text-[11px] font-bold">Aunty</span></button>
                     </div>
                 </div>
 
-                <!-- Error Message Display -->
                 <p id="authError" class="text-xs text-red-500 font-bold hidden text-center"></p>
-
-                <button type="submit" id="authSubmitBtn" class="w-full bg-pink-600 hover:bg-pink-700 text-white font-bold py-3 rounded-2xl transition duration-200 shadow-lg shadow-pink-200 dark:shadow-none text-sm">
-                    <span data-i18n="btnLogin">အကောင့်ဝင်မည်</span>
-                </button>
+                <button type="submit" id="authSubmitBtn" class="w-full bg-pink-600 hover:bg-pink-700 text-white font-bold py-3 rounded-2xl transition duration-200 shadow-lg text-sm"><span data-i18n="btnLogin">အကောင့်ဝင်မည်</span></button>
             </form>
         </section>
 
-        <!-- ================= PAGE 2: MAP & LIVE LOCATION ================= -->
+        <!-- MAP & LIVE LOCATION SCREEN -->
         <section id="mapScreen" class="hidden flex flex-col gap-4">
             
-            <!-- User Profile, Battery Status & Weather Header Card -->
+            <!-- User Header Card (Battery section completely hidden/removed) -->
             <div class="bg-white dark:bg-gray-800 p-3.5 rounded-3xl shadow-sm border border-pink-100 dark:border-gray-700 flex items-center justify-between transition-colors">
                 <div class="flex items-center gap-3">
                     <div id="userIconDisplay" class="w-10 h-10 rounded-2xl bg-pink-100 dark:bg-gray-700 flex items-center justify-center text-2xl border border-pink-200 dark:border-gray-600 shadow-inner">👦</div>
@@ -185,31 +128,23 @@
                     </div>
                 </div>
                 
-                <!-- Status Indicators: Speed, Battery & Weather -->
                 <div class="flex items-center gap-2">
                     <div class="bg-pink-50 dark:bg-gray-700/80 p-2 rounded-2xl border border-pink-100 dark:border-gray-600 text-right text-xs font-semibold flex flex-col items-end">
                         <div class="flex items-center gap-1 text-[11px] text-gray-700 dark:text-gray-200">
                             <span id="speedDisplay">0 km/h</span>
                             <span id="activityDisplay" class="text-pink-600 dark:text-pink-400 font-bold">🚶</span>
                         </div>
-                        <div class="flex items-center gap-1 text-[10px] text-gray-500 dark:text-gray-300">
-                            <i class="fa-solid fa-battery-three-quarters text-green-500"></i>
-                            <span id="selfBatteryDisplay">--%</span>
-                        </div>
                     </div>
 
                     <div id="weatherWidget" class="bg-gradient-to-r from-blue-50 to-pink-50 dark:from-gray-700 dark:to-gray-800 p-2 rounded-2xl border border-blue-100 dark:border-gray-600 flex items-center gap-2 text-right">
                         <span id="weatherIcon" class="text-xl">🌤️</span>
-                        <div>
-                            <div id="weatherTemp" class="text-xs font-bold text-gray-800 dark:text-gray-100">--°C</div>
-                        </div>
+                        <div><div id="weatherTemp" class="text-xs font-bold text-gray-800 dark:text-gray-100">--°C</div></div>
                     </div>
                 </div>
             </div>
 
-            <!-- Map Card with Search Box -->
+            <!-- Map Card -->
             <div class="bg-white dark:bg-gray-800 p-3 rounded-3xl shadow-md border border-pink-100 dark:border-gray-700 flex flex-col gap-3 transition-colors">
-                <!-- Search Bar -->
                 <div class="relative z-[500]">
                     <div class="flex items-center bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-2xl p-1.5 px-3 focus-within:ring-2 focus-within:ring-pink-400 transition shadow-sm">
                         <i class="fa-solid fa-magnifying-glass text-gray-400 text-xs mr-2"></i>
@@ -219,7 +154,6 @@
                     <div id="searchResults" class="hidden absolute top-12 left-0 w-full bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl shadow-xl max-h-48 overflow-y-auto z-[600] text-xs divide-y divide-gray-100 dark:divide-gray-700"></div>
                 </div>
 
-                <!-- Leaflet Interactive Map -->
                 <div class="h-80 relative overflow-hidden rounded-2xl shadow-inner border border-gray-100 dark:border-gray-700">
                     <div id="map"></div>
                     <button onclick="reCenterSelf()" class="absolute bottom-3 right-3 bg-white/90 dark:bg-gray-800/90 dark:text-white hover:bg-white text-gray-700 p-2.5 rounded-2xl shadow-md z-[400] text-xs font-bold border border-gray-200 dark:border-gray-600 flex items-center gap-1.5">
@@ -227,7 +161,6 @@
                     </button>
                 </div>
 
-                <!-- Route & Distance Info Card -->
                 <div id="routeInfoCard" class="hidden bg-pink-50 dark:bg-gray-700 p-3 rounded-2xl border border-pink-200 dark:border-gray-600 flex items-center justify-between text-xs">
                     <div class="flex items-center gap-2">
                         <i class="fa-solid fa-route text-pink-600 dark:text-pink-400 text-base"></i>
@@ -239,7 +172,6 @@
                     <button onclick="clearRoute()" class="text-gray-400 hover:text-red-500 font-bold px-2 py-1"><i class="fa-solid fa-xmark text-sm"></i></button>
                 </div>
 
-                <!-- Live Location Toggle Button -->
                 <button onclick="toggleLocationSharing()" id="shareBtn" class="w-full bg-pink-600 hover:bg-pink-700 text-white font-bold py-3 rounded-2xl transition duration-200 shadow-md text-sm flex items-center justify-center gap-2">
                     <i class="fa-solid fa-location-arrow"></i> <span id="shareBtnText" data-i18n="btnStartShare">Live Location စတင်မျှဝေမည်</span>
                 </button>
@@ -248,7 +180,7 @@
             <!-- Active Users List -->
             <div class="bg-white dark:bg-gray-800 p-4 rounded-3xl shadow-md border border-pink-100 dark:border-gray-700 transition-colors">
                 <h3 class="font-bold text-sm text-gray-700 dark:text-gray-200 mb-3 flex items-center justify-between">
-                    <span data-i18n="activeUsersTitle">👥 Map ပေါ်ရှိ သုံးစွဲသူများ</span>
+                    <span data-i18n="activeUsersTitle">👥 Map ပေါ်ရှိ သုံးစွဲသူများ (စကားပြောရန် နှိပ်ပါ)</span>
                     <span id="userCount" class="bg-pink-100 dark:bg-gray-700 text-pink-700 dark:text-pink-300 text-xs px-2.5 py-0.5 rounded-full font-bold">0</span>
                 </h3>
                 <div id="userList" class="space-y-2 max-h-48 overflow-y-auto pr-1">
@@ -260,26 +192,26 @@
 
     </main>
 
-    <!-- REAL-TIME GLOBAL CHAT MODAL OVERLAY -->
-    <div id="chatModal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-[2500] flex items-center justify-center p-4">
-        <div class="bg-white dark:bg-gray-800 w-full max-w-md h-[80vh] rounded-3xl shadow-2xl border border-pink-100 dark:border-gray-700 flex flex-col overflow-hidden animate-scale-up">
-            <!-- Chat Header -->
+    <!-- PRIVATE CHAT MODAL -->
+    <div id="privateChatModal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-[2500] flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-gray-800 w-full max-w-md h-[80vh] rounded-3xl shadow-2xl border border-pink-100 dark:border-gray-700 flex flex-col overflow-hidden">
             <div class="bg-pink-600 dark:bg-gray-700 text-white p-4 flex items-center justify-between">
                 <div class="flex items-center gap-2">
-                    <i class="fa-solid fa-comments text-lg"></i>
-                    <h3 class="font-bold text-sm" data-i18n="chatTitle">အဖွဲ့ဝင်များ စာတိုပေးပို့ရန်</h3>
+                    <span id="chatPartnerIcon" class="text-xl">👦</span>
+                    <div>
+                        <h3 class="font-bold text-sm" id="chatPartnerName">Chat</h3>
+                        <span class="text-[10px] text-pink-200" id="chatPartnerStatus">Personal Chat</span>
+                    </div>
                 </div>
-                <button onclick="toggleChatModal(false)" class="hover:text-gray-200 text-xl font-bold"><i class="fa-solid fa-xmark"></i></button>
+                <button onclick="closePrivateChat()" class="hover:text-gray-200 text-xl font-bold"><i class="fa-solid fa-xmark"></i></button>
             </div>
 
-            <!-- Chat Messages Area -->
-            <div id="chatMessages" class="flex-1 p-4 overflow-y-auto space-y-3 bg-gray-50 dark:bg-gray-900/50">
-                <p class="text-center text-xs text-gray-400 py-6">မက်ဆေ့ချ် မရှိသေးပါ။ စာစတင်ပို့ပါ။</p>
+            <div id="privateChatMessages" class="flex-1 p-4 overflow-y-auto space-y-3 bg-gray-50 dark:bg-gray-900/50">
+                <p class="text-center text-xs text-gray-400 py-6">မက်ဆေ့ချ် မရှိသေးပါ။</p>
             </div>
 
-            <!-- Chat Input Area -->
-            <form onsubmit="sendChatMessage(event)" class="p-3 bg-white dark:bg-gray-800 border-t border-gray-100 dark:border-gray-700 flex gap-2">
-                <input type="text" id="chatInput" placeholder="စာရိုက်ပါ..." required class="flex-1 px-4 py-2.5 bg-gray-100 dark:bg-gray-700 text-sm rounded-2xl focus:outline-none focus:ring-2 focus:ring-pink-500 dark:text-white">
+            <form onsubmit="sendPrivateMessage(event)" class="p-3 bg-white dark:bg-gray-800 border-t border-gray-100 dark:border-gray-700 flex gap-2">
+                <input type="text" id="privateChatInput" placeholder="စာရိုက်ပါ..." required class="flex-1 px-4 py-2.5 bg-gray-100 dark:bg-gray-700 text-sm rounded-2xl focus:outline-none focus:ring-2 focus:ring-pink-500 dark:text-white">
                 <button type="submit" class="bg-pink-600 hover:bg-pink-700 text-white px-4 py-2.5 rounded-2xl font-bold text-sm shadow-md transition flex items-center justify-center">
                     <i class="fa-solid fa-paper-plane"></i>
                 </button>
@@ -288,19 +220,14 @@
     </div>
 
     <!-- Footer -->
-    <footer class="text-center py-3 text-xs text-gray-400">
-        Firebase Live Location &copy; 2026
-    </footer>
+    <footer class="text-center py-3 text-xs text-gray-400">Firebase Live Location &copy; 2026</footer>
 
-    <!-- Leaflet JS -->
+    <!-- Leaflet JS & Firebase SDK -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
-    <!-- Firebase SDK (Modular v10) -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, doc, setDoc, getDoc, onSnapshot, collection, addDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, doc, setDoc, getDoc, onSnapshot, collection, addDoc, deleteDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        // Firebase Configuration
         const firebaseConfig = {
             apiKey: "AIzaSyDLG2fJ3fRtBNNO0DhhRFbZoFdDGPRExn0",
             authDomain: "live-location-ea2df.firebaseapp.com",
@@ -314,7 +241,6 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // State Variables
         let currentLang = localStorage.getItem('appLang') || 'my';
         let isDarkMode = localStorage.getItem('darkMode') === 'true';
         let authMode = 'login';
@@ -323,17 +249,13 @@
         let watchId = null;
         let map = null;
         let markers = {};
-        let userCircles = {}; // 300m Proximity Circles
+        let userCircles = {};
         let currentPolyline = null;
         let myCurrentPos = null;
-        let lastPos = null;
-        let lastPosTime = null;
-        let userBatteryLevel = null;
-        let activeProximityPairs = new Set();
-        let isChatOpen = false;
-        let lastReadChatTime = Date.now();
+        let currentChatPartner = null;
+        let chatUnsubscribe = null;
 
-        const roleIcons = { Boy: '👦', Girl: '👧', Dad: '👨', Mom: '👩', Uncle: '🧔', Aunty: '👵' };
+        const roleIcons = { Boy: '👦', Girl: '👧', Dad: '👨', Mom: ' Mom', Uncle: '🧔', Aunty: '👵' };
 
         const i18n = {
             my: {
@@ -347,7 +269,6 @@
                 labelUsername: "အသုံးပြုသူ အမည် (Username)",
                 labelPassword: "လျှို့ဝှက်နံပါတ်",
                 labelIcon: "Icon ရွေးချယ်ရန်",
-                roleBoy: "Boy", roleGirl: "Girl", roleDad: "Dad", roleMom: "Mom", roleUncle: "Uncle", roleAunty: "Aunty",
                 btnLogin: "အကောင့်ဝင်မည်",
                 btnSignup: "အကောင့်သစ်ဖွင့်မည်",
                 btnSearch: "ရှာမည်",
@@ -358,12 +279,7 @@
                 searchingUsers: "သုံးစွဲသူများ မရှိသေးပါ။",
                 btnView: "ကြည့်မည်",
                 youTag: "(မိမိ)",
-                chatTitle: "အဖွဲ့ဝင်များ စာတိုပေးပို့ရန်",
-                errUsernameTaken: "ဤ Username ကို အသုံးပြုပြီးသားဖြစ်ပါသည်။ အခြားတစ်ခုသုံးပါ။",
-                errInvalidLogin: "Username သို့မဟုတ် လျှို့ဝှက်နံပါတ် မှားယွင်းနေပါသည်။",
-                errUserNotFound: "အကောင့်မရှိသေးပါ။ ကျေးဇူးပြု၍ Sign Up လုပ်ပါ။",
                 alertTitle: "နီးကပ်မှု သတိပေးချက် ⚠️",
-                alertMeetSoon: "300m Circle အချင်းချင်း ထိမိပါသည်။ သိပ်မကြာခင် တွေ့ဆုံတော့မည်!",
                 targetUser: "အကွာအဝေး:"
             },
             en: {
@@ -377,7 +293,6 @@
                 labelUsername: "Username",
                 labelPassword: "Password",
                 labelIcon: "Select Icon",
-                roleBoy: "Boy", roleGirl: "Girl", roleDad: "Dad", roleMom: "Mom", roleUncle: "Uncle", roleAunty: "Aunty",
                 btnLogin: "Login",
                 btnSignup: "Sign Up",
                 btnSearch: "Search",
@@ -388,17 +303,11 @@
                 searchingUsers: "No active users sharing location.",
                 btnView: "View",
                 youTag: "(You)",
-                chatTitle: "Global Group Chat",
-                errUsernameTaken: "Username is already taken. Please choose another.",
-                errInvalidLogin: "Invalid username or password.",
-                errUserNotFound: "Account does not exist. Please Sign Up.",
                 alertTitle: "Proximity Alert ⚠️",
-                alertMeetSoon: "300m Circles intersecting! You are about to meet soon!",
                 targetUser: "Target:"
             }
         };
 
-        // Dark Mode Toggle
         window.toggleDarkMode = function() {
             isDarkMode = !isDarkMode;
             localStorage.setItem('darkMode', isDarkMode);
@@ -415,7 +324,6 @@
             }
         }
 
-        // Language Switcher
         window.toggleLanguage = function() {
             currentLang = currentLang === 'my' ? 'en' : 'my';
             localStorage.setItem('appLang', currentLang);
@@ -430,28 +338,21 @@
             document.getElementById('langBtn').innerText = currentLang === 'my' ? '🇲🇲' : '🇬🇧';
         }
 
-        // Auth Tabs
         window.switchAuthTab = function(mode) {
             authMode = mode;
-            const tabLogin = document.getElementById('tabLogin');
-            const tabSignup = document.getElementById('tabSignup');
-            const authTitle = document.getElementById('authTitle');
-            const authSubtitle = document.getElementById('authSubtitle');
-            const authSubmitBtn = document.getElementById('authSubmitBtn');
             document.getElementById('authError').classList.add('hidden');
-
             if (mode === 'signup') {
-                tabSignup.className = "flex-1 py-2 rounded-xl text-xs font-bold transition bg-white dark:bg-gray-800 text-pink-700 dark:text-pink-400 shadow-sm";
-                tabLogin.className = "flex-1 py-2 rounded-xl text-xs font-bold text-gray-500 dark:text-gray-400 transition";
-                authTitle.innerText = i18n[currentLang].welcomeSignup;
-                authSubtitle.innerText = i18n[currentLang].subSignup;
-                authSubmitBtn.innerText = i18n[currentLang].btnSignup;
+                document.getElementById('tabSignup').className = "flex-1 py-2 rounded-xl text-xs font-bold transition bg-white dark:bg-gray-800 text-pink-700 dark:text-pink-400 shadow-sm";
+                document.getElementById('tabLogin').className = "flex-1 py-2 rounded-xl text-xs font-bold text-gray-500 dark:text-gray-400 transition";
+                document.getElementById('authTitle').innerText = i18n[currentLang].welcomeSignup;
+                document.getElementById('authSubtitle').innerText = i18n[currentLang].subSignup;
+                document.getElementById('authSubmitBtn').innerText = i18n[currentLang].btnSignup;
             } else {
-                tabLogin.className = "flex-1 py-2 rounded-xl text-xs font-bold transition bg-white dark:bg-gray-800 text-pink-700 dark:text-pink-400 shadow-sm";
-                tabSignup.className = "flex-1 py-2 rounded-xl text-xs font-bold text-gray-500 dark:text-gray-400 transition";
-                authTitle.innerText = i18n[currentLang].welcomeLogin;
-                authSubtitle.innerText = i18n[currentLang].subLogin;
-                authSubmitBtn.innerText = i18n[currentLang].btnLogin;
+                document.getElementById('tabLogin').className = "flex-1 py-2 rounded-xl text-xs font-bold transition bg-white dark:bg-gray-800 text-pink-700 dark:text-pink-400 shadow-sm";
+                document.getElementById('tabSignup').className = "flex-1 py-2 rounded-xl text-xs font-bold text-gray-500 dark:text-gray-400 transition";
+                document.getElementById('authTitle').innerText = i18n[currentLang].welcomeLogin;
+                document.getElementById('authSubtitle').innerText = i18n[currentLang].subLogin;
+                document.getElementById('authSubmitBtn').innerText = i18n[currentLang].btnLogin;
             }
         };
 
@@ -461,67 +362,28 @@
             event.currentTarget.classList.add('active');
         };
 
-        // Real Battery Detection Logic
-        function initBatteryMonitor() {
-            if ('getBattery' in navigator) {
-                navigator.getBattery().then(battery => {
-                    const updateBattery = () => {
-                        userBatteryLevel = Math.round(battery.level * 100);
-                        document.getElementById('selfBatteryDisplay').innerText = `${userBatteryLevel}%`;
-                        if (currentUser && localStorage.getItem('isSharing') === 'true' && myCurrentPos) {
-                            setDoc(doc(db, "locations", currentUser.username.toLowerCase()), { battery: userBatteryLevel }, { merge: true });
-                        }
-                    };
-                    updateBattery();
-                    battery.addEventListener('levelchange', updateBattery);
-                    battery.addEventListener('chargingchange', updateBattery);
-                }).catch(e => {
-                    console.log("Battery API error:", e);
-                    document.getElementById('selfBatteryDisplay').innerText = `N/A`;
-                });
-            } else {
-                document.getElementById('selfBatteryDisplay').innerText = `N/A`;
-            }
-        }
-
-        // Auth Submit
         window.handleAuthSubmit = async function(e) {
             e.preventDefault();
             const username = document.getElementById('inputUsername').value.trim();
             const password = document.getElementById('inputPassword').value.trim();
             const errEl = document.getElementById('authError');
             errEl.classList.add('hidden');
-
             if (!username || !password) return;
 
-            const docKey = username.toLowerCase();
-            const userRef = doc(db, "users", docKey);
-
+            const userRef = doc(db, "users", username.toLowerCase());
             if (authMode === 'signup') {
-                const userSnap = await getDoc(userRef);
-                if (userSnap.exists()) {
-                    errEl.innerText = i18n[currentLang].errUsernameTaken;
-                    errEl.classList.remove('hidden');
-                    return;
-                }
+                const snap = await getDoc(userRef);
+                if (snap.exists()) { errEl.innerText = "Username already taken."; errEl.classList.remove('hidden'); return; }
                 const userData = { username, password, role: selectedRole, createdAt: Date.now() };
                 await setDoc(userRef, userData);
                 currentUser = userData;
                 localStorage.setItem('firebaseUserSession', JSON.stringify(currentUser));
                 showMapScreen();
             } else {
-                const userSnap = await getDoc(userRef);
-                if (!userSnap.exists()) {
-                    errEl.innerText = i18n[currentLang].errUserNotFound;
-                    errEl.classList.remove('hidden');
-                    return;
-                }
-                const userData = userSnap.data();
-                if (userData.password !== password) {
-                    errEl.innerText = i18n[currentLang].errInvalidLogin;
-                    errEl.classList.remove('hidden');
-                    return;
-                }
+                const snap = await getDoc(userRef);
+                if (!snap.exists()) { errEl.innerText = "Account not found."; errEl.classList.remove('hidden'); return; }
+                const userData = snap.data();
+                if (userData.password !== password) { errEl.innerText = "Invalid password."; errEl.classList.remove('hidden'); return; }
                 currentUser = userData;
                 localStorage.setItem('firebaseUserSession', JSON.stringify(currentUser));
                 showMapScreen();
@@ -532,20 +394,14 @@
             document.getElementById('authScreen').classList.add('hidden');
             document.getElementById('mapScreen').classList.remove('hidden');
             document.getElementById('logoutBtn').classList.remove('hidden');
-            document.getElementById('openChatBtn').classList.remove('hidden');
-
             document.getElementById('displayUserName').innerText = currentUser.username;
             document.getElementById('displayUserRole').innerText = currentUser.role;
             document.getElementById('userIconDisplay').innerText = roleIcons[currentUser.role] || '👦';
 
             initMap();
-            initBatteryMonitor();
             listenToFirestore();
-            listenToGlobalChat();
 
-            if (localStorage.getItem('isSharing') === 'true') {
-                startSharing();
-            }
+            if (localStorage.getItem('isSharing') === 'true') startSharing();
         }
 
         window.logout = function() {
@@ -553,10 +409,8 @@
             localStorage.removeItem('firebaseUserSession');
             localStorage.removeItem('isSharing');
             currentUser = null;
-
             document.getElementById('mapScreen').classList.add('hidden');
             document.getElementById('logoutBtn').classList.add('hidden');
-            document.getElementById('openChatBtn').classList.add('hidden');
             document.getElementById('authScreen').classList.remove('hidden');
         };
 
@@ -564,59 +418,36 @@
             if (map) return;
             map = L.map('map', { zoomControl: false }).setView([16.8661, 96.1951], 13);
             L.control.zoom({ position: 'topright' }).addTo(map);
-
-            L.tileLayer('https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
-                maxZoom: 20,
-                subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
-                attribution: '© Google Maps'
-            }).addTo(map);
-
+            L.tileLayer('https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', { maxZoom: 20, subdomains: ['mt0', 'mt1', 'mt2', 'mt3'] }).addTo(map);
             fetchWeather(16.8661, 96.1951);
         }
 
         window.reCenterSelf = function() {
-            if (myCurrentPos) {
-                map.flyTo([myCurrentPos.lat, myCurrentPos.lon], 16);
-            } else if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(pos => {
-                    map.flyTo([pos.coords.latitude, pos.coords.longitude], 16);
-                });
-            }
+            if (myCurrentPos) map.flyTo([myCurrentPos.lat, myCurrentPos.lon], 16);
         };
 
-        // Geocoding Search
         window.searchLocation = async function() {
             const query = document.getElementById('searchPlaceInput').value.trim();
             const resultsBox = document.getElementById('searchResults');
             if (!query) { resultsBox.classList.add('hidden'); return; }
-
             try {
                 const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&countrycodes=mm&q=${encodeURIComponent(query)}`);
                 const data = await res.json();
                 if (data && data.length > 0) {
                     let html = '';
                     data.slice(0, 5).forEach(item => {
-                        html += `
-                            <div onclick="goToPlace(${item.lat}, ${item.lon}, '${item.display_name.replace(/'/g, "\\'")}')" class="p-2.5 hover:bg-pink-50 dark:hover:bg-gray-700 cursor-pointer flex items-center gap-2">
-                                <i class="fa-solid fa-location-dot text-pink-600"></i>
-                                <span class="truncate">${item.display_name}</span>
-                            </div>
-                        `;
+                        html += `<div onclick="goToPlace(${item.lat}, ${item.lon}, '${item.display_name.replace(/'/g, "\\'")}')" class="p-2.5 hover:bg-pink-50 dark:hover:bg-gray-700 cursor-pointer flex items-center gap-2"><i class="fa-solid fa-location-dot text-pink-600"></i><span class="truncate">${item.display_name}</span></div>`;
                     });
                     resultsBox.innerHTML = html;
                     resultsBox.classList.remove('hidden');
-                } else {
-                    resultsBox.innerHTML = `<div class="p-3 text-center text-gray-400">ရှာဖွေမှု ရလဒ် မတွေ့ပါ</div>`;
-                    resultsBox.classList.remove('hidden');
                 }
-            } catch (e) { console.error(e); }
+            } catch (e) {}
         };
 
         window.goToPlace = function(lat, lon, name) {
             document.getElementById('searchResults').classList.add('hidden');
             document.getElementById('searchPlaceInput').value = name.split(',')[0];
             map.flyTo([lat, lon], 16);
-            L.popup().setLatLng([lat, lon]).setContent(`<b style="font-size:12px; color:#be185d;">📍 ${name.split(',')[0]}</b>`).openOn(map);
             fetchWeather(lat, lon);
         };
 
@@ -624,63 +455,18 @@
             try {
                 const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`);
                 const data = await res.json();
-                if (data.current_weather) {
-                    const temp = Math.round(data.current_weather.temperature);
-                    document.getElementById('weatherTemp').innerText = `${temp}°C`;
-                    document.getElementById('weatherIcon').innerText = getWeatherEmoji(data.current_weather.weathercode);
-                }
-            } catch (e) { console.error(e); }
+                if (data.current_weather) document.getElementById('weatherTemp').innerText = `${Math.round(data.current_weather.temperature)}°C`;
+            } catch (e) {}
         }
 
-        function getWeatherEmoji(code) {
-            if (code === 0) return '☀️';
-            if (code >= 1 && code <= 3) return '🌤️';
-            if (code >= 45 && code <= 48) return '🌫️';
-            if (code >= 51 && code <= 67) return '🌧️';
-            if (code >= 80 && code <= 82) return '🌦️';
-            if (code >= 95) return '🌩️';
-            return '☀️';
-        }
-
-        // Haversine Distance in KM
         function calculateHaversineDistance(lat1, lon1, lat2, lon2) {
             const R = 6371;
             const dLat = (lat2 - lat1) * Math.PI / 180;
             const dLon = (lon2 - lon1) * Math.PI / 180;
-            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-                      Math.sin(dLon/2) * Math.sin(dLon/2);
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon/2) * Math.sin(dLon/2);
             return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
         }
 
-        // 300m Circles Touch Notification & 3s Vibration
-        function checkCircleIntersection(otherUser, distKm) {
-            // Distance between centers <= 0.60 km (600 meters = 300m + 300m radii touching)
-            const INTERSECTION_THRESHOLD_KM = 0.60;
-            const pairKey = [currentUser.username, otherUser.username].sort().join('_');
-
-            if (distKm <= INTERSECTION_THRESHOLD_KM) {
-                if (!activeProximityPairs.has(pairKey)) {
-                    activeProximityPairs.add(pairKey);
-
-                    // 3 Seconds Vibration Alert
-                    if ("vibrate" in navigator) {
-                        navigator.vibrate([3000]);
-                    }
-
-                    document.getElementById('alertMessage').innerText = `${otherUser.username} ၏ 300m Circle နှင့် ထိမိပါသည်။ သိပ်မကြာခင် တွေ့ဆုံတော့မည်!`;
-                    document.getElementById('proximityAlert').classList.remove('hidden');
-                }
-            } else {
-                activeProximityPairs.delete(pairKey);
-            }
-        }
-
-        window.dismissAlert = function() {
-            document.getElementById('proximityAlert').classList.add('hidden');
-        };
-
-        // Real-time Listener for Active Sharers
         function listenToFirestore() {
             onSnapshot(collection(db, "locations"), (snapshot) => {
                 let listHTML = '';
@@ -697,285 +483,156 @@
                         const iconSymbol = roleIcons[data.role] || '👦';
                         const isSelf = currentUser && id === currentUser.username.toLowerCase();
 
-                        // Circle intersection calculation
                         if (!isSelf && myCurrentPos) {
                             const dist = calculateHaversineDistance(myCurrentPos.lat, myCurrentPos.lon, data.latitude, data.longitude);
-                            checkCircleIntersection(data, dist);
+                            if (dist <= 0.60) {
+                                document.getElementById('proximityAlert').classList.remove('hidden');
+                            }
                         }
 
-                        // Marker Setup
-                        const markerHtml = `
-                            <div class="relative flex items-center justify-center w-9 h-9 bg-white dark:bg-gray-800 border-2 border-pink-500 rounded-full shadow-md text-lg ${isSelf ? 'user-marker-pulse ring-2 ring-pink-500' : ''}">
-                                ${iconSymbol}
-                            </div>
-                        `;
+                        const markerHtml = `<div class="relative flex items-center justify-center w-9 h-9 bg-white dark:bg-gray-800 border-2 border-pink-500 rounded-full shadow-md text-lg ${isSelf ? 'user-marker-pulse' : ''}">${iconSymbol}</div>`;
+                        const customIcon = L.divIcon({ html: markerHtml, className: '', iconSize: [36, 36], iconAnchor: [18, 18] });
 
-                        const customIcon = L.divIcon({
-                            html: markerHtml,
-                            className: 'custom-div-icon',
-                            iconSize: [36, 36],
-                            iconAnchor: [18, 18]
-                        });
-
-                        // Draw or Update 300m Proximity Circle
                         if (userCircles[id]) {
                             userCircles[id].setLatLng([data.latitude, data.longitude]);
                         } else {
-                            userCircles[id] = L.circle([data.latitude, data.longitude], {
-                                radius: 300, // 300 meters
-                                color: '#ec4899',
-                                fillColor: '#f472b6',
-                                fillOpacity: 0.15,
-                                weight: 1.5
-                            }).addTo(map);
+                            userCircles[id] = L.circle([data.latitude, data.longitude], { radius: 300, color: '#ec4899', fillColor: '#f472b6', fillOpacity: 0.15, weight: 1.5 }).addTo(map);
                         }
 
                         if (markers[id]) {
                             markers[id].setLatLng([data.latitude, data.longitude]);
                             markers[id].setIcon(customIcon);
                         } else {
-                            markers[id] = L.marker([data.latitude, data.longitude], { icon: customIcon })
-                                .addTo(map)
-                                .bindPopup(`<b>📍 ${data.username}</b><br/><span style="font-size:10px">${data.role} | 🔋 ${data.battery !== undefined ? data.battery + '%' : 'N/A'}</span>`);
+                            markers[id] = L.marker([data.latitude, data.longitude], { icon: customIcon }).addTo(map);
                         }
 
                         listHTML += `
                             <div class="flex items-center justify-between bg-gray-50 dark:bg-gray-700/50 border border-gray-100 dark:border-gray-600 p-2.5 rounded-2xl text-xs shadow-sm">
-                                <div class="flex items-center gap-2">
+                                <div class="flex items-center gap-2 cursor-pointer" onclick="openPrivateChat('${data.username}', '${data.role}')">
                                     <span class="text-xl">${iconSymbol}</span>
                                     <div>
-                                        <div class="font-bold text-gray-700 dark:text-gray-200">${data.username} ${isSelf ? `<span class="text-pink-600 dark:text-pink-400 font-normal">${i18n[currentLang].youTag}</span>` : ''}</div>
-                                        <div class="text-[10px] text-gray-400 dark:text-gray-300">🔋 ${data.battery !== undefined ? data.battery + '%' : 'N/A'} | 🚗 ${data.speed || 0} km/h</div>
+                                        <div class="font-bold text-gray-700 dark:text-gray-200">${data.username} ${isSelf ? `<span class="text-pink-600">(မိမိ)</span>` : ''}</div>
+                                        <div class="text-[10px] text-gray-400">💬 စာပို့ရန်နှိပ်ပါ</div>
                                     </div>
                                 </div>
-                                ${!isSelf ? `
-                                    <button onclick="viewUserRoute(${data.latitude}, ${data.longitude}, '${data.username}')" class="bg-pink-600 hover:bg-pink-700 text-white font-bold px-3 py-1.5 rounded-xl transition shadow-sm flex items-center gap-1">
-                                        <i class="fa-solid fa-route text-xs"></i> ${i18n[currentLang].btnView}
-                                    </button>
-                                ` : ''}
+                                ${!isSelf ? `<button onclick="viewUserRoute(${data.latitude}, ${data.longitude}, '${data.username}')" class="bg-pink-600 text-white font-bold px-3 py-1.5 rounded-xl text-xs">ကြည့်မည်</button>` : ''}
                             </div>
                         `;
                     }
                 });
 
-                // Remove inactive markers & circles
-                Object.keys(markers).forEach((id) => {
-                    if (!activeIds.has(id)) {
-                        map.removeLayer(markers[id]);
-                        delete markers[id];
-                        if (userCircles[id]) {
-                            map.removeLayer(userCircles[id]);
-                            delete userCircles[id];
-                        }
-                    }
-                });
-
                 document.getElementById('userCount').innerText = count;
-                document.getElementById('userList').innerHTML = listHTML || `<p class="text-xs text-gray-400 text-center py-4">${i18n[currentLang].searchingUsers}</p>`;
+                document.getElementById('userList').innerHTML = listHTML || `<p class="text-xs text-gray-400 text-center py-4">သုံးစွဲသူများ မရှိသေးပါ။</p>`;
             });
         }
 
-        // Global Chat Real-time Listener (Decoupled from Location Sharing)
-        function listenToGlobalChat() {
-            onSnapshot(collection(db, "chats"), (snapshot) => {
-                let messages = [];
+        window.openPrivateChat = function(partnerName, partnerRole) {
+            if (currentUser.username.toLowerCase() === partnerName.toLowerCase()) return;
+            currentChatPartner = partnerName;
+            document.getElementById('chatPartnerName').innerText = partnerName;
+            document.getElementById('chatPartnerIcon').innerText = roleIcons[partnerRole] || '👦';
+            document.getElementById('privateChatModal').classList.remove('hidden');
+
+            if (chatUnsubscribe) chatUnsubscribe();
+
+            const chatId = [currentUser.username.toLowerCase(), partnerName.toLowerCase()].sort().join('_');
+            const chatRef = collection(db, "chats", chatId, "messages");
+
+            chatUnsubscribe = onSnapshot(chatRef, (snapshot) => {
+                let msgs = [];
                 snapshot.forEach(docSnap => {
-                    messages.push(docSnap.data());
-                });
-
-                // Sort client-side by timestamp ascending
-                messages.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
-
-                let chatHTML = '';
-                let hasNewUnread = false;
-
-                messages.forEach(msg => {
-                    const isSelf = currentUser && msg.sender === currentUser.username;
-                    if (!isSelf && msg.timestamp > lastReadChatTime && !isChatOpen) {
-                        hasNewUnread = true;
+                    let d = { id: docSnap.id, ...docSnap.data() };
+                    msgs.push(d);
+                    if (d.receiver === currentUser.username && d.status === 'delivered') {
+                        updateDoc(doc(db, "chats", chatId, "messages", d.id), { status: 'seen' });
                     }
+                });
+                msgs.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
 
-                    chatHTML += `
+                let html = '';
+                msgs.forEach(m => {
+                    const isSelf = m.sender === currentUser.username;
+                    let statusIcon = '';
+                    if (isSelf) {
+                        if (m.status === 'seen') statusIcon = '<span class="text-sky-400 font-bold">✓✓ Seen</span>';
+                        else statusIcon = '<span class="text-gray-300">✓ Delivered</span>';
+                    }
+                    html += `
                         <div class="flex flex-col ${isSelf ? 'items-end' : 'items-start'}">
-                            <span class="text-[10px] text-gray-400 dark:text-gray-400 mb-0.5 px-1">${msg.sender} (${msg.role || 'Boy'})</span>
-                            <div class="max-w-[80%] p-2.5 rounded-2xl text-xs font-semibold ${isSelf ? 'bg-pink-600 text-white rounded-tr-none' : 'bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 rounded-tl-none border border-gray-100 dark:border-gray-600 shadow-sm'}">
-                                ${msg.text}
+                            <div class="max-w-[80%] p-2.5 rounded-2xl text-xs font-semibold ${isSelf ? 'bg-pink-600 text-white rounded-tr-none' : 'bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 rounded-tl-none border shadow-sm'}">
+                                ${m.text}
                             </div>
+                            <span class="text-[9px] text-gray-400 mt-0.5">${statusIcon}</span>
                         </div>
                     `;
                 });
-
-                const msgBox = document.getElementById('chatMessages');
-                msgBox.innerHTML = chatHTML || `<p class="text-center text-xs text-gray-400 py-6">မက်ဆေ့ချ် မရှိသေးပါ။ စာစတင်ပို့ပါ။</p>`;
-                msgBox.scrollTop = msgBox.scrollHeight;
-
-                if (hasNewUnread) {
-                    document.getElementById('unreadChatBadge').classList.remove('hidden');
-                    if ("vibrate" in navigator) {
-                        navigator.vibrate([200, 100, 200]);
-                    }
-                }
+                const box = document.getElementById('privateChatMessages');
+                box.innerHTML = html || `<p class="text-center text-xs text-gray-400 py-6">စတင်ပြောဆိုပါ။</p>`;
+                box.scrollTop = box.scrollHeight;
             });
-        }
-
-        window.toggleChatModal = function(show) {
-            isChatOpen = show;
-            const modal = document.getElementById('chatModal');
-            if (show) {
-                modal.classList.remove('hidden');
-                document.getElementById('unreadChatBadge').classList.add('hidden');
-                lastReadChatTime = Date.now();
-                const msgBox = document.getElementById('chatMessages');
-                msgBox.scrollTop = msgBox.scrollHeight;
-            } else {
-                modal.classList.add('hidden');
-            }
         };
 
-        window.sendChatMessage = async function(e) {
-            e.preventDefault();
-            const input = document.getElementById('chatInput');
-            const text = input.value.trim();
-            if (!text || !currentUser) return;
+        window.closePrivateChat = function() {
+            document.getElementById('privateChatModal').classList.add('hidden');
+            if (chatUnsubscribe) { chatUnsubscribe(); chatUnsubscribe = null; }
+        };
 
+        window.sendPrivateMessage = async function(e) {
+            e.preventDefault();
+            const input = document.getElementById('privateChatInput');
+            const text = input.value.trim();
+            if (!text || !currentChatPartner) return;
             input.value = '';
-            await addDoc(collection(db, "chats"), {
+
+            const chatId = [currentUser.username.toLowerCase(), currentChatPartner.toLowerCase()].sort().join('_');
+            await addDoc(collection(db, "chats", chatId, "messages"), {
                 sender: currentUser.username,
-                role: currentUser.role,
+                receiver: currentChatPartner,
                 text: text,
+                status: 'delivered',
                 timestamp: Date.now()
             });
         };
 
-        // Draw Route Line & ETA
-        window.viewUserRoute = function(targetLat, targetLon, targetName) {
-            if (!myCurrentPos) {
-                map.flyTo([targetLat, targetLon], 16);
-                return;
-            }
+        window.dismissAlert = function() { document.getElementById('proximityAlert').classList.add('hidden'); };
 
-            if (currentPolyline) map.removeLayer(currentPolyline);
-
-            const latlngs = [
-                [myCurrentPos.lat, myCurrentPos.lon],
-                [targetLat, targetLon]
-            ];
-
-            currentPolyline = L.polyline(latlngs, { color: '#ec4899', weight: 4, dashArray: '8, 8' }).addTo(map);
-            map.fitBounds(currentPolyline.getBounds(), { padding: [50, 50] });
-
-            const distKm = calculateHaversineDistance(myCurrentPos.lat, myCurrentPos.lon, targetLat, targetLon);
-            const etaMinutes = Math.max(1, Math.round((distKm / 30) * 60));
-
-            document.getElementById('routeTargetName').innerText = targetName;
-            document.getElementById('routeDistance').innerText = `${distKm.toFixed(2)} km`;
-            document.getElementById('routeETA').innerText = `${etaMinutes} min`;
-            document.getElementById('routeInfoCard').classList.remove('hidden');
-        };
-
-        window.clearRoute = function() {
-            if (currentPolyline) {
-                map.removeLayer(currentPolyline);
-                currentPolyline = null;
-            }
-            document.getElementById('routeInfoCard').classList.add('hidden');
-        };
-
-        // Location Sharing Toggle & Speed Calculation
         function startSharing() {
             if (!navigator.geolocation || !currentUser) return;
-
-            watchId = navigator.geolocation.watchPosition(async (position) => {
-                const lat = position.coords.latitude;
-                const lon = position.coords.longitude;
-                const now = Date.now();
+            watchId = navigator.geolocation.watchPosition(async (pos) => {
+                const lat = pos.coords.latitude;
+                const lon = pos.coords.longitude;
                 myCurrentPos = { lat, lon };
-
-                // Calculate Speed & Activity
-                let speedKmH = 0;
-                let activity = '🚶';
-                if (lastPos && lastPosTime) {
-                    const distKm = calculateHaversineDistance(lastPos.lat, lastPos.lon, lat, lon);
-                    const hours = (now - lastPosTime) / 3600000;
-                    if (hours > 0) {
-                        speedKmH = Math.round(distKm / hours);
-                        if (speedKmH > 15) activity = '🚗';
-                        else if (speedKmH > 2) activity = '🚶';
-                        else activity = '🅿️';
-                    }
-                }
-                lastPos = { lat, lon };
-                lastPosTime = now;
-
-                document.getElementById('speedDisplay').innerText = `${speedKmH} km/h`;
-                document.getElementById('activityDisplay').innerText = activity;
-
-                // Push Live Coordinates & Real Battery
                 await setDoc(doc(db, "locations", currentUser.username.toLowerCase()), {
                     username: currentUser.username,
                     role: currentUser.role,
                     latitude: lat,
                     longitude: lon,
-                    speed: speedKmH,
-                    battery: userBatteryLevel !== null ? userBatteryLevel : 'N/A',
-                    updatedAt: now
+                    updatedAt: Date.now()
                 });
-
-                fetchWeather(lat, lon);
-
-            }, (err) => console.error(err), {
-                enableHighAccuracy: true,
-                maximumAge: 0,
-                timeout: 10000
-            });
-
+            }, () => {}, { enableHighAccuracy: true });
             localStorage.setItem('isSharing', 'true');
-            updateUIState();
+            document.getElementById('shareBtnText').innerText = "Live Location မျှဝေမှု ရပ်မည်";
+            document.getElementById('shareBtn').className = "w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded-2xl transition shadow-md text-sm flex items-center justify-center gap-2";
         }
 
         function stopSharing() {
-            if (watchId !== null) {
-                navigator.geolocation.clearWatch(watchId);
-                watchId = null;
-            }
-            if (currentUser) {
-                deleteDoc(doc(db, "locations", currentUser.username.toLowerCase()));
-            }
-            myCurrentPos = null;
-            clearRoute();
+            if (watchId !== null) { navigator.geolocation.clearWatch(watchId); watchId = null; }
+            if (currentUser) deleteDoc(doc(db, "locations", currentUser.username.toLowerCase()));
             localStorage.setItem('isSharing', 'false');
-            updateUIState();
+            document.getElementById('shareBtnText').innerText = "Live Location စတင်မျှဝေမည်";
+            document.getElementById('shareBtn').className = "w-full bg-pink-600 hover:bg-pink-700 text-white font-bold py-3 rounded-2xl transition shadow-md text-sm flex items-center justify-center gap-2";
         }
 
         window.toggleLocationSharing = function() {
-            const isSharing = localStorage.getItem('isSharing') === 'true';
-            if (!isSharing) startSharing();
-            else stopSharing();
+            if (localStorage.getItem('isSharing') === 'true') stopSharing();
+            else startSharing();
         };
 
-        function updateUIState() {
-            const isSharing = localStorage.getItem('isSharing') === 'true';
-            const btn = document.getElementById('shareBtn');
-            const btnText = document.getElementById('shareBtnText');
-
-            if (isSharing) {
-                if (btnText) btnText.innerText = i18n[currentLang].btnStopShare;
-                btn.className = "w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded-2xl transition duration-200 shadow-md text-sm flex items-center justify-center gap-2";
-            } else {
-                if (btnText) btnText.innerText = i18n[currentLang].btnStartShare;
-                btn.className = "w-full bg-pink-600 hover:bg-pink-700 text-white font-bold py-3 rounded-2xl transition duration-200 shadow-md text-sm flex items-center justify-center gap-2";
-            }
-        }
-
-        // Init
         window.addEventListener('DOMContentLoaded', () => {
             applyTheme();
             applyLanguage();
-            const savedSession = localStorage.getItem('firebaseUserSession');
-            if (savedSession) {
-                currentUser = JSON.parse(savedSession);
-                showMapScreen();
-            }
+            const session = localStorage.getItem('firebaseUserSession');
+            if (session) { currentUser = JSON.parse(session); showMapScreen(); }
         });
     </script>
 </body>
