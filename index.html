@@ -216,6 +216,7 @@
     <!-- MESSENGER CONVERSATION MODAL WITH VIDEO CALL BUTTON -->
     <div id="privateChatModal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-[2500] flex items-center justify-center p-4">
         <div class="bg-white dark:bg-gray-800 w-full max-w-md h-[85vh] rounded-3xl shadow-2xl border border-pink-100 dark:border-gray-700 flex flex-col overflow-hidden">
+            <!-- Chat Header with Video Call Button -->
             <div class="bg-pink-600 dark:bg-gray-700 text-white p-3.5 flex items-center justify-between shadow-sm">
                 <div class="flex items-center gap-2.5">
                     <button onclick="closePrivateChat()" class="text-lg pr-1 hover:text-gray-200"><i class="fa-solid fa-arrow-left"></i></button>
@@ -226,9 +227,9 @@
                     </div>
                 </div>
 
+                <!-- Messenger Style Video Call Button -->
                 <div class="flex items-center gap-3">
-                    <!-- VIDEO CALL BUTTON -->
-                    <button onclick="startVideoCall()" class="bg-white/20 hover:bg-white/30 text-white p-2 rounded-full text-sm transition" title="Start Video Call">
+                    <button onclick="startVideoCall()" class="bg-white/20 hover:bg-white/30 text-white p-2.5 rounded-full text-sm transition shadow" title="Start Video Call">
                         <i class="fa-solid fa-video"></i>
                     </button>
                     <button onclick="closePrivateChat()" class="hover:text-gray-200 text-lg font-bold"><i class="fa-solid fa-xmark"></i></button>
@@ -352,12 +353,12 @@
         let recordSeconds = 0;
         let globalUsersUnsub = null;
         let globalLocsUnsub = null;
+        let inboxListeners = [];
 
         // WEBRTC VIDEO CALL VARS
         let peerConnection = null;
         let localStream = null;
         let remoteStream = null;
-        let activeCallDocId = null;
         let callUnsubscribe = null;
         let incomingCallData = null;
 
@@ -513,6 +514,7 @@
 
             initMap();
             listenToUsersAndLocations();
+            setupInboxGlobalNotification();
             listenToIncomingVideoCalls();
 
             if (localStorage.getItem('isSharing') === 'true') startSharing();
@@ -522,6 +524,7 @@
             stopSharing();
             if (globalUsersUnsub) globalUsersUnsub();
             if (globalLocsUnsub) globalLocsUnsub();
+            inboxListeners.forEach(unsub => unsub());
             localStorage.removeItem('firebaseUserSession');
             localStorage.removeItem('isSharing');
             currentUser = null;
@@ -597,6 +600,7 @@
                 registeredUsersCache = {};
                 snap.forEach(d => { registeredUsersCache[d.id] = d.data(); });
                 renderUserListAndMarkers();
+                setupInboxGlobalNotification();
             });
 
             globalLocsUnsub = onSnapshot(collection(db, "locations"), (snap) => {
@@ -660,6 +664,32 @@
 
             document.getElementById('userCount').innerText = count;
             document.getElementById('userList').innerHTML = listHTML || `<p class="text-xs text-gray-400 text-center py-4">အသုံးပြုသူများ မရှိသေးပါ။</p>`;
+        }
+
+        function setupInboxGlobalNotification() {
+            if (!currentUser) return;
+            inboxListeners.forEach(unsub => unsub());
+            inboxListeners = [];
+
+            Object.values(registeredUsersCache).forEach(u => {
+                if (u.username.toLowerCase() !== currentUser.username.toLowerCase()) {
+                    const chatId = [currentUser.username.toLowerCase(), u.username.toLowerCase()].sort().join('_');
+                    const unsub = onSnapshot(collection(db, "chats", chatId, "messages"), (snap) => {
+                        let hasUnread = false;
+                        snap.forEach(mDoc => {
+                            let m = mDoc.data();
+                            if (m.receiver === currentUser.username && m.status === 'delivered') {
+                                hasUnread = true;
+                            }
+                        });
+                        if (hasUnread) {
+                            document.getElementById('unreadInboxBadge').classList.remove('hidden');
+                            if ("vibrate" in navigator) navigator.vibrate([200, 100, 200]);
+                        }
+                    });
+                    inboxListeners.push(unsub);
+                }
+            });
         }
 
         window.viewUserRoute = function(targetLat, targetLon, targetName) {
@@ -894,7 +924,6 @@
                 localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
                 peerConnection.ontrack = e => e.streams[0].getTracks().forEach(t => remoteStream.addTrack(t));
 
-                // Create Call Signaling Document in Firestore
                 const callId = [currentUser.username.toLowerCase(), currentChatPartner.toLowerCase()].sort().join('_');
                 const callDoc = doc(db, "calls", callId);
 
@@ -915,7 +944,6 @@
                     timestamp: Date.now()
                 });
 
-                // Listen for Answer
                 callUnsubscribe = onSnapshot(callDoc, async snap => {
                     const data = snap.data();
                     if (data && data.answer && !peerConnection.currentRemoteDescription) {
