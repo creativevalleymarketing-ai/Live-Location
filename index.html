@@ -213,7 +213,7 @@
         </div>
     </div>
 
-    <!-- MESSENGER CONVERSATION MODAL -->
+    <!-- MESSENGER CONVERSATION MODAL (Step-by-step Back to Inbox) -->
     <div id="privateChatModal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-[2500] flex items-center justify-center p-4">
         <div class="bg-white dark:bg-gray-800 w-full max-w-md h-[85vh] rounded-3xl shadow-2xl border border-pink-100 dark:border-gray-700 flex flex-col overflow-hidden">
             <!-- Chat Header -->
@@ -299,7 +299,6 @@
         let myCurrentPos = null;
         let currentChatPartner = null;
         let chatUnsubscribe = null;
-        let typingStatusUnsub = null;
         let typingTimeout = null;
         let mediaRecorder = null;
         let audioChunks = [];
@@ -362,14 +361,6 @@
                 targetUser: "Target:"
             }
         };
-
-        // Simple Hash function for secure password storage instead of plain text
-        async function hashPassword(password) {
-            const msgUint8 = new TextEncoder().encode(password);
-            const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
-            const hashArray = Array.from(new Uint8Array(hashBuffer));
-            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-        }
 
         window.toggleDarkMode = function() {
             isDarkMode = !isDarkMode;
@@ -434,22 +425,20 @@
             if (!username || !password) return;
 
             const userRef = doc(db, "users", username.toLowerCase());
-            const hashedPassword = await hashPassword(password);
-
             if (authMode === 'signup') {
                 const snap = await getDoc(userRef);
                 if (snap.exists()) { errEl.innerText = "Username already taken."; errEl.classList.remove('hidden'); return; }
-                const userData = { username, password: hashedPassword, role: selectedRole, createdAt: Date.now() };
+                const userData = { username, password, role: selectedRole, createdAt: Date.now() };
                 await setDoc(userRef, userData);
-                currentUser = { username, role: selectedRole };
+                currentUser = userData;
                 localStorage.setItem('firebaseUserSession', JSON.stringify(currentUser));
                 showMapScreen();
             } else {
                 const snap = await getDoc(userRef);
                 if (!snap.exists()) { errEl.innerText = "Account not found."; errEl.classList.remove('hidden'); return; }
                 const userData = snap.data();
-                if (userData.password !== hashedPassword) { errEl.innerText = "Invalid password."; errEl.classList.remove('hidden'); return; }
-                currentUser = { username: userData.username, role: userData.role };
+                if (userData.password !== password) { errEl.innerText = "Invalid password."; errEl.classList.remove('hidden'); return; }
+                currentUser = userData;
                 localStorage.setItem('firebaseUserSession', JSON.stringify(currentUser));
                 showMapScreen();
             }
@@ -473,15 +462,12 @@
 
         window.logout = function() {
             stopSharing();
-            if (globalUsersUnsub) { globalUsersUnsub(); globalUsersUnsub = null; }
-            if (globalLocsUnsub) { globalLocsUnsub(); globalLocsUnsub = null; }
+            if (globalUsersUnsub) globalUsersUnsub();
+            if (globalLocsUnsub) globalLocsUnsub();
             inboxListeners.forEach(unsub => unsub());
-            inboxListeners = [];
-            
             localStorage.removeItem('firebaseUserSession');
             localStorage.removeItem('isSharing');
             currentUser = null;
-            
             document.getElementById('mapScreen').classList.add('hidden');
             document.getElementById('logoutBtn').classList.add('hidden');
             document.getElementById('openInboxBtn').classList.add('hidden');
@@ -501,9 +487,7 @@
             else if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(pos => {
                     map.flyTo([pos.coords.latitude, pos.coords.longitude], 16);
-                }, (error) => {
-                    alert("တည်နေရာရယူရန် ခွင့်ပြုချက်မရှိပါ သို့မဟုတ် GPS ပိတ်ထားပါသည်။");
-                }, { timeout: 10000 });
+                });
             }
         };
 
@@ -552,9 +536,6 @@
         let activeLocationsCache = {};
 
         function listenToUsersAndLocations() {
-            if (globalUsersUnsub) globalUsersUnsub();
-            if (globalLocsUnsub) globalLocsUnsub();
-
             globalUsersUnsub = onSnapshot(collection(db, "users"), (snap) => {
                 registeredUsersCache = {};
                 snap.forEach(d => { registeredUsersCache[d.id] = d.data(); });
@@ -620,12 +601,8 @@
 
             Object.keys(markers).forEach(id => {
                 if (!activeIds.has(id)) {
-                    if (map) {
-                        map.removeLayer(markers[id]);
-                        if (userCircles[id]) map.removeLayer(userCircles[id]);
-                    }
-                    delete markers[id];
-                    delete userCircles[id];
+                    map.removeLayer(markers[id]); delete markers[id];
+                    if (userCircles[id]) { map.removeLayer(userCircles[id]); delete userCircles[id]; }
                 }
             });
 
@@ -674,10 +651,11 @@
         };
 
         window.clearRoute = function() {
-            if (currentPolyline && map) { map.removeLayer(currentPolyline); currentPolyline = null; }
+            if (currentPolyline) { map.removeLayer(currentPolyline); currentPolyline = null; }
             document.getElementById('routeInfoCard').classList.add('hidden');
         };
 
+        // --- MESSENGER INBOX & CHAT ---
         window.openMessengerInbox = function() {
             document.getElementById('messengerInboxModal').classList.remove('hidden');
             document.getElementById('unreadInboxBadge').classList.add('hidden');
@@ -721,13 +699,12 @@
         window.openPrivateChat = function(partnerName, partnerRole) {
             if (currentUser.username.toLowerCase() === partnerName.toLowerCase()) return;
             currentChatPartner = partnerName;
-            document.getElementById('messengerInboxModal').classList.add('hidden');
+            document.getElementById('messengerInboxModal').classList.add('hidden'); // Close inbox, open chat
             document.getElementById('chatPartnerName').innerText = partnerName;
             document.getElementById('chatPartnerIcon').innerText = roleIcons[partnerRole] || '👦';
             document.getElementById('privateChatModal').classList.remove('hidden');
 
             if (chatUnsubscribe) chatUnsubscribe();
-            if (typingStatusUnsub) typingStatusUnsub();
 
             const chatId = [currentUser.username.toLowerCase(), partnerName.toLowerCase()].sort().join('_');
             const chatRef = collection(db, "chats", chatId, "messages");
@@ -782,7 +759,7 @@
                 box.scrollTop = box.scrollHeight;
             });
 
-            typingStatusUnsub = onSnapshot(doc(db, "chats", chatId, "status", partnerName.toLowerCase()), (docSnap) => {
+            onSnapshot(doc(db, "chats", chatId, "status", partnerName.toLowerCase()), (docSnap) => {
                 const statusEl = document.getElementById('chatTypingStatus');
                 if (docSnap.exists() && docSnap.data().typing) {
                     statusEl.innerHTML = `<span class="text-yellow-300 animate-pulse font-bold">typing...</span>`;
@@ -792,17 +769,16 @@
             });
         };
 
+        // Step-by-step back to Inbox instead of Home
         window.backToInbox = function() {
             document.getElementById('privateChatModal').classList.add('hidden');
             if (chatUnsubscribe) { chatUnsubscribe(); chatUnsubscribe = null; }
-            if (typingStatusUnsub) { typingStatusUnsub(); typingStatusUnsub = null; }
             openMessengerInbox();
         };
 
         window.closePrivateChat = function() {
             document.getElementById('privateChatModal').classList.add('hidden');
             if (chatUnsubscribe) { chatUnsubscribe(); chatUnsubscribe = null; }
-            if (typingStatusUnsub) { typingStatusUnsub(); typingStatusUnsub = null; }
         };
 
         window.sendPrivateMessage = async function(e) {
@@ -823,6 +799,7 @@
             });
         };
 
+        // Optimized Image Compression & Upload Handler
         window.handleImageUpload = function(e) {
             const file = e.target.files[0];
             if (!file || !currentChatPartner) return;
@@ -955,9 +932,7 @@
                     longitude: lon,
                     updatedAt: Date.now()
                 });
-            }, (error) => {
-                alert("တည်နေရာရယူမှု အမှားဖြစ်ပွားနေပါသည်။ GPS ကိုဖွင့်ထားပါ။");
-            }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 5000 });
+            }, () => {}, { enableHighAccuracy: true });
             localStorage.setItem('isSharing', 'true');
             document.getElementById('shareBtnText').innerText = "Live Location မျှဝေမှု ရပ်မည်";
             document.getElementById('shareBtn').className = "w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded-2xl transition shadow-md text-sm flex items-center justify-center gap-2";
