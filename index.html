@@ -61,7 +61,7 @@
         </div>
     </nav>
 
-    <!-- Proximity Alert Notification (Screen Center & 3s Timeout) -->
+    <!-- Proximity Alert Notification -->
     <div id="proximityAlert" class="hidden fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[2000] w-11/12 max-w-md bg-pink-600 text-white p-4 rounded-3xl shadow-2xl border-2 border-white flex items-center gap-3">
         <div class="text-3xl">⚠️</div>
         <div class="flex-1">
@@ -213,13 +213,13 @@
         </div>
     </div>
 
-    <!-- MESSENGER CONVERSATION MODAL WITH IMAGE ATTACHMENT -->
+    <!-- MESSENGER CONVERSATION MODAL (Step-by-step Back to Inbox) -->
     <div id="privateChatModal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-[2500] flex items-center justify-center p-4">
         <div class="bg-white dark:bg-gray-800 w-full max-w-md h-[85vh] rounded-3xl shadow-2xl border border-pink-100 dark:border-gray-700 flex flex-col overflow-hidden">
             <!-- Chat Header -->
             <div class="bg-pink-600 dark:bg-gray-700 text-white p-3.5 flex items-center justify-between shadow-sm">
                 <div class="flex items-center gap-2.5">
-                    <button onclick="closePrivateChat()" class="text-lg pr-1 hover:text-gray-200"><i class="fa-solid fa-arrow-left"></i></button>
+                    <button onclick="backToInbox()" class="text-lg pr-1 hover:text-gray-200"><i class="fa-solid fa-arrow-left"></i></button>
                     <span id="chatPartnerIcon" class="text-2xl">👦</span>
                     <div>
                         <h3 class="font-bold text-sm leading-tight" id="chatPartnerName">Chat</h3>
@@ -227,7 +227,7 @@
                     </div>
                 </div>
 
-                <button onclick="closePrivateChat()" class="hover:text-gray-200 text-lg font-bold"><i class="fa-solid fa-xmark"></i></button>
+                <button onclick="backToInbox()" class="hover:text-gray-200 text-lg font-bold"><i class="fa-solid fa-xmark"></i></button>
             </div>
 
             <!-- Messages Stream -->
@@ -237,14 +237,11 @@
 
             <!-- Typing & Attachment Bar -->
             <form onsubmit="sendPrivateMessage(event)" class="p-2.5 bg-white dark:bg-gray-800 border-t border-gray-100 dark:border-gray-700 flex items-center gap-2">
-                
-                <!-- Image Attachment Button & Hidden Input -->
                 <input type="file" id="imageInput" accept="image/*" class="hidden" onchange="handleImageUpload(event)">
                 <button type="button" onclick="document.getElementById('imageInput').click()" class="text-pink-600 dark:text-pink-400 hover:bg-pink-50 dark:hover:bg-gray-700 p-2 rounded-full transition text-lg" title="Send Image">
                     <i class="fa-solid fa-image"></i>
                 </button>
 
-                <!-- Voice Record Button -->
                 <div class="flex items-center gap-1">
                     <button type="button" id="voiceRecordBtn" onclick="toggleVoiceRecording()" class="text-pink-600 dark:text-pink-400 hover:bg-pink-50 dark:hover:bg-gray-700 p-2 rounded-full transition text-lg" title="Audio Message">
                         <i class="fa-solid fa-microphone"></i>
@@ -702,7 +699,7 @@
         window.openPrivateChat = function(partnerName, partnerRole) {
             if (currentUser.username.toLowerCase() === partnerName.toLowerCase()) return;
             currentChatPartner = partnerName;
-            closeMessengerInbox();
+            document.getElementById('messengerInboxModal').classList.add('hidden'); // Close inbox, open chat
             document.getElementById('chatPartnerName').innerText = partnerName;
             document.getElementById('chatPartnerIcon').innerText = roleIcons[partnerRole] || '👦';
             document.getElementById('privateChatModal').classList.remove('hidden');
@@ -772,6 +769,13 @@
             });
         };
 
+        // Step-by-step back to Inbox instead of Home
+        window.backToInbox = function() {
+            document.getElementById('privateChatModal').classList.add('hidden');
+            if (chatUnsubscribe) { chatUnsubscribe(); chatUnsubscribe = null; }
+            openMessengerInbox();
+        };
+
         window.closePrivateChat = function() {
             document.getElementById('privateChatModal').classList.add('hidden');
             if (chatUnsubscribe) { chatUnsubscribe(); chatUnsubscribe = null; }
@@ -795,23 +799,45 @@
             });
         };
 
-        // Image Upload Attachment Handler
+        // Optimized Image Compression & Upload Handler
         window.handleImageUpload = function(e) {
             const file = e.target.files[0];
             if (!file || !currentChatPartner) return;
 
             const reader = new FileReader();
-            reader.onload = async function(event) {
-                const base64Image = event.target.result;
-                const chatId = [currentUser.username.toLowerCase(), currentChatPartner.toLowerCase()].sort().join('_');
-                await addDoc(collection(db, "chats", chatId, "messages"), {
-                    sender: currentUser.username,
-                    receiver: currentChatPartner,
-                    type: 'image',
-                    imageUrl: base64Image,
-                    status: 'delivered',
-                    timestamp: Date.now()
-                });
+            reader.onload = function(event) {
+                const img = new Image();
+                img.src = event.target.result;
+                img.onload = async function() {
+                    const canvas = document.createElement('canvas');
+                    const MAX_WIDTH = 600;
+                    const MAX_HEIGHT = 600;
+                    let width = img.width;
+                    let height = img.height;
+
+                    if (width > height) {
+                        if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
+                    } else {
+                        if (height > MAX_HEIGHT) { width *= MAX_HEIGHT / height; height = MAX_HEIGHT; }
+                    }
+
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+
+                    const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
+
+                    const chatId = [currentUser.username.toLowerCase(), currentChatPartner.toLowerCase()].sort().join('_');
+                    await addDoc(collection(db, "chats", chatId, "messages"), {
+                        sender: currentUser.username,
+                        receiver: currentChatPartner,
+                        type: 'image',
+                        imageUrl: compressedBase64,
+                        status: 'delivered',
+                        timestamp: Date.now()
+                    });
+                };
             };
             reader.readAsDataURL(file);
             e.target.value = '';
