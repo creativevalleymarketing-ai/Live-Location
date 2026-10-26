@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Firebase Live Location, Messenger & Video Call</title>
+    <title>Firebase Live Location & Messenger Chat</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -213,10 +213,10 @@
         </div>
     </div>
 
-    <!-- MESSENGER CONVERSATION MODAL WITH VIDEO CALL BUTTON -->
+    <!-- MESSENGER CONVERSATION MODAL WITH IMAGE ATTACHMENT -->
     <div id="privateChatModal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-[2500] flex items-center justify-center p-4">
         <div class="bg-white dark:bg-gray-800 w-full max-w-md h-[85vh] rounded-3xl shadow-2xl border border-pink-100 dark:border-gray-700 flex flex-col overflow-hidden">
-            <!-- Chat Header with Video Call Button -->
+            <!-- Chat Header -->
             <div class="bg-pink-600 dark:bg-gray-700 text-white p-3.5 flex items-center justify-between shadow-sm">
                 <div class="flex items-center gap-2.5">
                     <button onclick="closePrivateChat()" class="text-lg pr-1 hover:text-gray-200"><i class="fa-solid fa-arrow-left"></i></button>
@@ -227,13 +227,7 @@
                     </div>
                 </div>
 
-                <!-- Video Call Button inside Chat Box -->
-                <div class="flex items-center gap-3">
-                    <button onclick="startVideoCall()" class="bg-white/20 hover:bg-white/30 text-white p-2.5 rounded-full text-sm transition shadow" title="Start Video Call">
-                        <i class="fa-solid fa-video"></i>
-                    </button>
-                    <button onclick="closePrivateChat()" class="hover:text-gray-200 text-lg font-bold"><i class="fa-solid fa-xmark"></i></button>
-                </div>
+                <button onclick="closePrivateChat()" class="hover:text-gray-200 text-lg font-bold"><i class="fa-solid fa-xmark"></i></button>
             </div>
 
             <!-- Messages Stream -->
@@ -241,8 +235,16 @@
                 <p class="text-center text-xs text-gray-400 py-6">စတင်ပြောဆိုပါ။</p>
             </div>
 
-            <!-- Typing & Recording Bar -->
+            <!-- Typing & Attachment Bar -->
             <form onsubmit="sendPrivateMessage(event)" class="p-2.5 bg-white dark:bg-gray-800 border-t border-gray-100 dark:border-gray-700 flex items-center gap-2">
+                
+                <!-- Image Attachment Button & Hidden Input -->
+                <input type="file" id="imageInput" accept="image/*" class="hidden" onchange="handleImageUpload(event)">
+                <button type="button" onclick="document.getElementById('imageInput').click()" class="text-pink-600 dark:text-pink-400 hover:bg-pink-50 dark:hover:bg-gray-700 p-2 rounded-full transition text-lg" title="Send Image">
+                    <i class="fa-solid fa-image"></i>
+                </button>
+
+                <!-- Voice Record Button -->
                 <div class="flex items-center gap-1">
                     <button type="button" id="voiceRecordBtn" onclick="toggleVoiceRecording()" class="text-pink-600 dark:text-pink-400 hover:bg-pink-50 dark:hover:bg-gray-700 p-2 rounded-full transition text-lg" title="Audio Message">
                         <i class="fa-solid fa-microphone"></i>
@@ -259,55 +261,10 @@
         </div>
     </div>
 
-    <!-- WEBRTC VIDEO CALL MODAL OVERLAY -->
-    <div id="videoCallModal" class="hidden fixed inset-0 bg-gray-950/90 backdrop-blur-md z-[3000] flex flex-col items-center justify-between p-4 text-white">
-        <!-- Call Header -->
-        <div class="text-center mt-4">
-            <span id="callPartnerIcon" class="text-4xl">👦</span>
-            <h3 class="font-bold text-lg" id="callPartnerName">Video Call</h3>
-            <p id="callStatusText" class="text-xs text-pink-400 animate-pulse">Calling...</p>
-        </div>
-
-        <!-- Video Display Container -->
-        <div class="relative w-full max-w-md h-[55vh] bg-black rounded-3xl overflow-hidden shadow-2xl border border-gray-800 flex items-center justify-center">
-            <!-- Remote Big Video Stream -->
-            <video id="remoteVideo" autoplay playsinline class="w-full h-full object-cover"></video>
-            
-            <!-- Local Small Video Overlay Stream -->
-            <video id="localVideo" autoplay playsinline muted class="absolute bottom-3 right-3 w-28 h-40 object-cover rounded-2xl border-2 border-white shadow-lg bg-gray-900"></video>
-        </div>
-
-        <!-- Call Action Buttons Bar -->
-        <div class="flex items-center gap-6 mb-6">
-            <button onclick="toggleAudioMute()" id="muteMicBtn" class="bg-gray-800 hover:bg-gray-700 text-white w-12 h-12 rounded-full text-lg shadow-lg transition flex items-center justify-center">
-                <i class="fa-solid fa-microphone"></i>
-            </button>
-            <button onclick="endVideoCall()" class="bg-red-600 hover:bg-red-700 text-white w-14 h-14 rounded-full text-2xl shadow-xl transition flex items-center justify-center animate-bounce">
-                <i class="fa-solid fa-phone-slash"></i>
-            </button>
-            <button onclick="toggleVideoCamera()" id="toggleCamBtn" class="bg-gray-800 hover:bg-gray-700 text-white w-12 h-12 rounded-full text-lg shadow-lg transition flex items-center justify-center">
-                <i class="fa-solid fa-video"></i>
-            </button>
-        </div>
-    </div>
-
-    <!-- INCOMING VIDEO CALL BANNER (Screen Center & 3s Auto Timeout if ignored) -->
-    <div id="incomingCallBanner" class="hidden fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[3500] w-11/12 max-w-md bg-pink-600 text-white p-5 rounded-3xl shadow-2xl border-2 border-white flex items-center justify-between">
-        <div class="flex items-center gap-3">
-            <span id="incomingCallIcon" class="text-3xl">👦</span>
-            <div>
-                <h4 class="font-bold text-sm" id="incomingCallName">User</h4>
-                <p class="text-xs text-pink-200">Incoming Video Call...</p>
-            </div>
-        </div>
-        <div class="flex items-center gap-2">
-            <button onclick="acceptIncomingCall()" class="bg-green-500 hover:bg-green-600 text-white px-3.5 py-2 rounded-2xl text-xs font-bold shadow transition flex items-center gap-1">
-                <i class="fa-solid fa-phone"></i> Accept
-            </button>
-            <button onclick="rejectIncomingCall()" class="bg-pink-900 hover:bg-pink-950 text-white px-3 py-2 rounded-2xl text-xs font-bold shadow transition">
-                Reject
-            </button>
-        </div>
+    <!-- FULL IMAGE VIEWER MODAL -->
+    <div id="imageViewerModal" class="hidden fixed inset-0 bg-black/90 z-[3000] flex items-center justify-center p-4">
+        <button onclick="closeImageViewer()" class="absolute top-4 right-4 text-white text-2xl font-bold p-2"><i class="fa-solid fa-xmark"></i></button>
+        <img id="fullImageView" src="" class="max-w-full max-h-[90vh] rounded-2xl object-contain shadow-2xl">
     </div>
 
     <!-- Footer -->
@@ -354,20 +311,6 @@
         let globalUsersUnsub = null;
         let globalLocsUnsub = null;
         let inboxListeners = [];
-
-        // WEBRTC VIDEO CALL VARS
-        let peerConnection = null;
-        let localStream = null;
-        let remoteStream = null;
-        let callUnsubscribe = null;
-        let incomingCallData = null;
-        let incomingCallTimeout = null;
-
-        const servers = {
-            iceServers: [
-                { urls: ['stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302'] }
-            ]
-        };
 
         const roleIcons = { Boy: '👦', Girl: '👧', Dad: '👨', Mom: '👩', Uncle: '🧔', Aunty: '👵' };
 
@@ -516,7 +459,6 @@
             initMap();
             listenToUsersAndLocations();
             setupInboxGlobalNotification();
-            listenToIncomingVideoCalls();
 
             if (localStorage.getItem('isSharing') === 'true') startSharing();
         }
@@ -788,7 +730,14 @@
                     let rxHtml = m.reaction ? `<span class="text-xs bg-white dark:bg-gray-800 rounded-full px-1 shadow border border-gray-100">${m.reaction}</span>` : '';
                     const timeStr = m.timestamp ? new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
 
-                    let bodyHtml = m.type === 'audio' ? `<audio controls src="${m.audioUrl}" class="h-8 w-48 rounded-lg"></audio>` : `<div>${m.text}</div>`;
+                    let bodyHtml = '';
+                    if (m.type === 'audio') {
+                        bodyHtml = `<audio controls src="${m.audioUrl}" class="h-8 w-48 rounded-lg"></audio>`;
+                    } else if (m.type === 'image') {
+                        bodyHtml = `<img src="${m.imageUrl}" onclick="viewFullImage('${m.imageUrl}')" class="max-w-[200px] max-h-[200px] rounded-2xl cursor-pointer object-cover shadow-sm hover:opacity-90 transition">`;
+                    } else {
+                        bodyHtml = `<div>${m.text}</div>`;
+                    }
 
                     html += `
                         <div class="flex flex-col ${isSelf ? 'items-end' : 'items-start'} group relative my-1">
@@ -844,6 +793,37 @@
                 status: 'delivered',
                 timestamp: Date.now()
             });
+        };
+
+        // Image Upload Attachment Handler
+        window.handleImageUpload = function(e) {
+            const file = e.target.files[0];
+            if (!file || !currentChatPartner) return;
+
+            const reader = new FileReader();
+            reader.onload = async function(event) {
+                const base64Image = event.target.result;
+                const chatId = [currentUser.username.toLowerCase(), currentChatPartner.toLowerCase()].sort().join('_');
+                await addDoc(collection(db, "chats", chatId, "messages"), {
+                    sender: currentUser.username,
+                    receiver: currentChatPartner,
+                    type: 'image',
+                    imageUrl: base64Image,
+                    status: 'delivered',
+                    timestamp: Date.now()
+                });
+            };
+            reader.readAsDataURL(file);
+            e.target.value = '';
+        };
+
+        window.viewFullImage = function(url) {
+            document.getElementById('fullImageView').src = url;
+            document.getElementById('imageViewerModal').classList.remove('hidden');
+        };
+
+        window.closeImageViewer = function() {
+            document.getElementById('imageViewerModal').classList.add('hidden');
         };
 
         window.toggleVoiceRecording = async function() {
@@ -909,179 +889,6 @@
             if (!currentChatPartner) return;
             const chatId = [currentUser.username.toLowerCase(), currentChatPartner.toLowerCase()].sort().join('_');
             await deleteDoc(doc(db, "chats", chatId, "messages", msgId));
-        };
-
-        // --- WEBRTC VIDEO CALLING SYSTEM (Fixed Audio/Video Stream Exchange) ---
-        window.startVideoCall = async function() {
-            if (!currentChatPartner) return;
-            document.getElementById('callPartnerName').innerText = currentChatPartner;
-            document.getElementById('callStatusText').innerText = "Calling...";
-            document.getElementById('videoCallModal').classList.remove('hidden');
-
-            try {
-                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-                document.getElementById('localVideo').srcObject = localStream;
-
-                peerConnection = new RTCPeerConnection(servers);
-                remoteStream = new MediaStream();
-                document.getElementById('remoteVideo').srcObject = remoteStream;
-
-                localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
-                peerConnection.ontrack = e => {
-                    e.streams[0].getTracks().forEach(track => remoteStream.addTrack(track));
-                };
-
-                const callId = [currentUser.username.toLowerCase(), currentChatPartner.toLowerCase()].sort().join('_');
-                const callDoc = doc(db, "calls", callId);
-
-                peerConnection.onicecandidate = async event => {
-                    if (event.candidate) {
-                        await setDoc(callDoc, { offerCandidates: [event.candidate.toJSON()] }, { merge: true });
-                    }
-                };
-
-                const offer = await peerConnection.createOffer();
-                await peerConnection.setLocalDescription(offer);
-
-                await setDoc(callDoc, {
-                    caller: currentUser.username,
-                    receiver: currentChatPartner,
-                    offer: { type: offer.type, sdp: offer.sdp },
-                    status: 'calling',
-                    timestamp: Date.now()
-                });
-
-                callUnsubscribe = onSnapshot(callDoc, async snap => {
-                    const data = snap.data();
-                    if (!data) return;
-                    if (data.answer && !peerConnection.currentRemoteDescription) {
-                        const answer = new RTCSessionDescription(data.answer);
-                        await peerConnection.setRemoteDescription(answer);
-                        document.getElementById('callStatusText').innerText = "Connected";
-                    }
-                    if (data.answerCandidates) {
-                        data.answerCandidates.forEach(async c => {
-                            try { await peerConnection.addIceCandidate(new RTCIceCandidate(c)); } catch(e){}
-                        });
-                    }
-                    if (data.status === 'ended') {
-                        endVideoCall();
-                    }
-                });
-
-            } catch (err) {
-                alert("ကင်မရာ/မိုက်ခရိုဖုန်း ခွင့်ပြုချက် လိုအပ်ပါသည်။");
-                endVideoCall();
-            }
-        };
-
-        function listenToIncomingVideoCalls() {
-            if (!currentUser) return;
-            onSnapshot(collection(db, "calls"), snap => {
-                snap.forEach(d => {
-                    const data = d.data();
-                    if (data.receiver === currentUser.username && data.status === 'calling') {
-                        incomingCallData = { id: d.id, ...data };
-                        const banner = document.getElementById('incomingCallBanner');
-                        document.getElementById('incomingCallName').innerText = data.caller;
-                        banner.classList.remove('hidden');
-                        if ("vibrate" in navigator) navigator.vibrate([500, 200, 500, 200]);
-
-                        // Auto hide after 3 seconds if not accepted/rejected
-                        clearTimeout(incomingCallTimeout);
-                        incomingCallTimeout = setTimeout(() => {
-                            banner.classList.add('hidden');
-                        }, 3000);
-                    }
-                });
-            });
-        }
-
-        window.acceptIncomingCall = async function() {
-            if (!incomingCallData) return;
-            clearTimeout(incomingCallTimeout);
-            document.getElementById('incomingCallBanner').classList.add('hidden');
-            document.getElementById('callPartnerName').innerText = incomingCallData.caller;
-            document.getElementById('callStatusText').innerText = "Connecting...";
-            document.getElementById('videoCallModal').classList.remove('hidden');
-
-            try {
-                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-                document.getElementById('localVideo').srcObject = localStream;
-
-                peerConnection = new RTCPeerConnection(servers);
-                remoteStream = new MediaStream();
-                document.getElementById('remoteVideo').srcObject = remoteStream;
-
-                localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
-                peerConnection.ontrack = e => {
-                    e.streams[0].getTracks().forEach(track => remoteStream.addTrack(track));
-                };
-
-                const callDoc = doc(db, "calls", incomingCallData.id);
-
-                peerConnection.onicecandidate = async event => {
-                    if (event.candidate) {
-                        await setDoc(callDoc, { answerCandidates: [event.candidate.toJSON()] }, { merge: true });
-                    }
-                };
-
-                await peerConnection.setRemoteDescription(new RTCSessionDescription(incomingCallData.offer));
-                const answer = await peerConnection.createAnswer();
-                await peerConnection.setLocalDescription(answer);
-
-                if (incomingCallData.offerCandidates) {
-                    incomingCallData.offerCandidates.forEach(async c => {
-                        try { await peerConnection.addIceCandidate(new RTCIceCandidate(c)); } catch(e){}
-                    });
-                }
-
-                await updateDoc(callDoc, {
-                    answer: { type: answer.type, sdp: answer.sdp },
-                    status: 'connected'
-                });
-
-                document.getElementById('callStatusText').innerText = "Connected";
-
-            } catch (err) { alert("ကင်မရာ/မိုက်ခရိုဖုန်း ခွင့်ပြုချက် မရပါ"); endVideoCall(); }
-        };
-
-        window.rejectIncomingCall = async function() {
-            clearTimeout(incomingCallTimeout);
-            if (incomingCallData) {
-                await updateDoc(doc(db, "calls", incomingCallData.id), { status: 'ended' });
-            }
-            document.getElementById('incomingCallBanner').classList.add('hidden');
-        };
-
-        window.endVideoCall = async function() {
-            if (localStream) localStream.getTracks().forEach(track => track.stop());
-            if (peerConnection) peerConnection.close();
-            peerConnection = null;
-            localStream = null;
-
-            if (currentChatPartner && currentUser) {
-                const callId = [currentUser.username.toLowerCase(), currentChatPartner.toLowerCase()].sort().join('_');
-                await setDoc(doc(db, "calls", callId), { status: 'ended' }, { merge: true });
-            }
-
-            document.getElementById('videoCallModal').classList.add('hidden');
-        };
-
-        window.toggleAudioMute = function() {
-            if (localStream) {
-                const audioTrack = localStream.getAudioTracks()[0];
-                audioTrack.enabled = !audioTrack.enabled;
-                document.getElementById('muteMicBtn').classList.toggle('bg-red-600');
-            }
-        };
-
-        window.toggleVideoCamera = function() {
-            if (localStream) {
-                const videoTrack = localStream.getVideoTracks()[0];
-                videoTrack.enabled = !videoTrack.enabled;
-                document.getElementById('toggleCamBtn').classList.toggle('bg-red-600');
-            }
         };
 
         window.dismissAlert = function() { document.getElementById('proximityAlert').classList.add('hidden'); };
