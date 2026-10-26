@@ -34,6 +34,16 @@
             70% { box-shadow: 0 0 0 14px rgba(236, 72, 153, 0); }
             100% { box-shadow: 0 0 0 0 rgba(236, 72, 153, 0); }
         }
+        @keyframes floatHeart {
+            0% { transform: translateY(0) scale(1); opacity: 1; }
+            100% { transform: translateY(-100vh) scale(1.5); opacity: 0; }
+        }
+        .floating-heart {
+            position: absolute;
+            animation: floatHeart 4s linear infinite;
+            font-size: 24px;
+            z-index: 9999;
+        }
     </style>
 </head>
 <body class="bg-pink-50 dark:bg-gray-900 text-gray-800 dark:text-gray-100 min-h-screen flex flex-col justify-between antialiased relative overflow-x-hidden transition-colors duration-200">
@@ -91,15 +101,19 @@
                     <label class="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-1" data-i18n="labelUsername">အသုံးပြုသူ အမည် (Username)</label>
                     <div class="relative">
                         <i class="fa-solid fa-user absolute left-3.5 top-3.5 text-gray-400 text-xs"></i>
-                        <input type="text" id="inputUsername" required placeholder="mya_mya" class="w-full pl-9 pr-4 py-2.5 rounded-2xl bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-pink-400 text-sm transition dark:text-white">
+                        <input type="text" id="inputUsername" required placeholder="May Thu Hlaing သို့မဟုတ် Mee Mee" class="w-full pl-9 pr-4 py-2.5 rounded-2xl bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-pink-400 text-sm transition dark:text-white">
                     </div>
                 </div>
 
+                <!-- Password with Hide / View Feature -->
                 <div>
                     <label class="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-1" data-i18n="labelPassword">လျှို့ဝှက်နံပါတ်</label>
                     <div class="relative">
                         <i class="fa-solid fa-lock absolute left-3.5 top-3.5 text-gray-400 text-xs"></i>
-                        <input type="password" id="inputPassword" required placeholder="••••••••" class="w-full pl-9 pr-4 py-2.5 rounded-2xl bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-pink-400 text-sm transition dark:text-white">
+                        <input type="password" id="inputPassword" required placeholder="••••••••" class="w-full pl-9 pr-10 py-2.5 rounded-2xl bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-pink-400 text-sm transition dark:text-white">
+                        <button type="button" onclick="togglePasswordVisibility()" class="absolute right-3.5 top-3.5 text-gray-400 hover:text-pink-600 transition text-xs">
+                            <i id="eyeIcon" class="fa-solid fa-eye-slash"></i>
+                        </button>
                     </div>
                 </div>
 
@@ -196,6 +210,16 @@
 
     </main>
 
+    <!-- SPECIAL LOVE OVERLAY MODAL FOR MAY THU HLAING OR MEE MEE -->
+    <div id="loveOverlayModal" class="hidden fixed inset-0 bg-pink-900/60 backdrop-blur-md z-[5000] flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-gray-800 w-full max-w-sm p-6 rounded-3xl shadow-2xl border-4 border-pink-400 text-center space-y-4 relative overflow-hidden animate-bounce">
+            <div class="text-5xl">💖 💝 💗</div>
+            <h2 class="text-2xl font-bold text-pink-600 dark:text-pink-400 font-['Pacifico']">Love You!</h2>
+            <p id="loveUserNameDisplay" class="text-sm font-bold text-gray-700 dark:text-gray-200">Welcome, Special One!</p>
+            <button onclick="closeLoveOverlay()" class="w-full bg-pink-600 hover:bg-pink-700 text-white font-bold py-2.5 rounded-2xl shadow-lg transition text-sm">Continue ❤️</button>
+        </div>
+    </div>
+
     <!-- MESSENGER INBOX MODAL -->
     <div id="messengerInboxModal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-[2400] flex items-center justify-center p-4">
         <div class="bg-white dark:bg-gray-800 w-full max-w-md h-[80vh] rounded-3xl shadow-2xl border border-pink-100 dark:border-gray-700 flex flex-col overflow-hidden">
@@ -213,10 +237,9 @@
         </div>
     </div>
 
-    <!-- MESSENGER CONVERSATION MODAL (Step-by-step Back to Inbox) -->
+    <!-- MESSENGER CONVERSATION MODAL -->
     <div id="privateChatModal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-[2500] flex items-center justify-center p-4">
         <div class="bg-white dark:bg-gray-800 w-full max-w-md h-[85vh] rounded-3xl shadow-2xl border border-pink-100 dark:border-gray-700 flex flex-col overflow-hidden">
-            <!-- Chat Header -->
             <div class="bg-pink-600 dark:bg-gray-700 text-white p-3.5 flex items-center justify-between shadow-sm">
                 <div class="flex items-center gap-2.5">
                     <button onclick="backToInbox()" class="text-lg pr-1 hover:text-gray-200"><i class="fa-solid fa-arrow-left"></i></button>
@@ -230,12 +253,10 @@
                 <button onclick="backToInbox()" class="hover:text-gray-200 text-lg font-bold"><i class="fa-solid fa-xmark"></i></button>
             </div>
 
-            <!-- Messages Stream -->
             <div id="privateChatMessages" class="flex-1 p-4 overflow-y-auto space-y-3 bg-gray-50 dark:bg-gray-900/50">
                 <p class="text-center text-xs text-gray-400 py-6">စတင်ပြောဆိုပါ။</p>
             </div>
 
-            <!-- Typing & Attachment Bar -->
             <form onsubmit="sendPrivateMessage(event)" class="p-2.5 bg-white dark:bg-gray-800 border-t border-gray-100 dark:border-gray-700 flex items-center gap-2">
                 <input type="file" id="imageInput" accept="image/*" class="hidden" onchange="handleImageUpload(event)">
                 <button type="button" onclick="document.getElementById('imageInput').click()" class="text-pink-600 dark:text-pink-400 hover:bg-pink-50 dark:hover:bg-gray-700 p-2 rounded-full transition text-lg" title="Send Image">
@@ -362,6 +383,19 @@
             }
         };
 
+        // --- PASSWORD HIDE / VIEW FUNCTION ---
+        window.togglePasswordVisibility = function() {
+            const passwordInput = document.getElementById('inputPassword');
+            const eyeIcon = document.getElementById('eyeIcon');
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                eyeIcon.className = 'fa-solid fa-eye';
+            } else {
+                passwordInput.type = 'password';
+                eyeIcon.className = 'fa-solid fa-eye-slash';
+            }
+        };
+
         window.toggleDarkMode = function() {
             isDarkMode = !isDarkMode;
             localStorage.setItem('darkMode', isDarkMode);
@@ -432,7 +466,7 @@
                 await setDoc(userRef, userData);
                 currentUser = userData;
                 localStorage.setItem('firebaseUserSession', JSON.stringify(currentUser));
-                showMapScreen();
+                checkSpecialUserAndProceed();
             } else {
                 const snap = await getDoc(userRef);
                 if (!snap.exists()) { errEl.innerText = "Account not found."; errEl.classList.remove('hidden'); return; }
@@ -440,9 +474,39 @@
                 if (userData.password !== password) { errEl.innerText = "Invalid password."; errEl.classList.remove('hidden'); return; }
                 currentUser = userData;
                 localStorage.setItem('firebaseUserSession', JSON.stringify(currentUser));
-                showMapScreen();
+                checkSpecialUserAndProceed();
             }
         };
+
+        // --- CHECK SPECIAL USER (May Thu Hlaing / Mee Mee) ---
+        function checkSpecialUserAndProceed() {
+            const nameLower = currentUser.username.toLowerCase();
+            if (nameLower === 'may thu hlaing' || nameLower === 'mee mee') {
+                document.getElementById('loveUserNameDisplay').innerText = `Welcome back, ${currentUser.username}! ❤️`;
+                document.getElementById('loveOverlayModal').classList.remove('hidden');
+                createFloatingHearts();
+            } else {
+                showMapScreen();
+            }
+        }
+
+        window.closeLoveOverlay = function() {
+            document.getElementById('loveOverlayModal').classList.add('hidden');
+            showMapScreen();
+        };
+
+        function createFloatingHearts() {
+            for (let i = 0; i < 15; i++) {
+                const heart = document.createElement('div');
+                heart.className = 'floating-heart';
+                heart.innerHTML = '💖';
+                heart.style.left = Math.random() * 100 + 'vw';
+                heart.style.top = (Math.random() * 50 + 50) + 'vh';
+                heart.style.animationDuration = (Math.random() * 2 + 3) + 's';
+                document.body.appendChild(heart);
+                setTimeout(() => heart.remove(), 4000);
+            }
+        }
 
         function showMapScreen() {
             document.getElementById('authScreen').classList.add('hidden');
@@ -655,7 +719,6 @@
             document.getElementById('routeInfoCard').classList.add('hidden');
         };
 
-        // --- MESSENGER INBOX & CHAT ---
         window.openMessengerInbox = function() {
             document.getElementById('messengerInboxModal').classList.remove('hidden');
             document.getElementById('unreadInboxBadge').classList.add('hidden');
@@ -699,7 +762,7 @@
         window.openPrivateChat = function(partnerName, partnerRole) {
             if (currentUser.username.toLowerCase() === partnerName.toLowerCase()) return;
             currentChatPartner = partnerName;
-            document.getElementById('messengerInboxModal').classList.add('hidden'); // Close inbox, open chat
+            document.getElementById('messengerInboxModal').classList.add('hidden');
             document.getElementById('chatPartnerName').innerText = partnerName;
             document.getElementById('chatPartnerIcon').innerText = roleIcons[partnerRole] || '👦';
             document.getElementById('privateChatModal').classList.remove('hidden');
@@ -769,16 +832,10 @@
             });
         };
 
-        // Step-by-step back to Inbox instead of Home
         window.backToInbox = function() {
             document.getElementById('privateChatModal').classList.add('hidden');
             if (chatUnsubscribe) { chatUnsubscribe(); chatUnsubscribe = null; }
             openMessengerInbox();
-        };
-
-        window.closePrivateChat = function() {
-            document.getElementById('privateChatModal').classList.add('hidden');
-            if (chatUnsubscribe) { chatUnsubscribe(); chatUnsubscribe = null; }
         };
 
         window.sendPrivateMessage = async function(e) {
@@ -799,7 +856,6 @@
             });
         };
 
-        // Optimized Image Compression & Upload Handler
         window.handleImageUpload = function(e) {
             const file = e.target.files[0];
             if (!file || !currentChatPartner) return;
