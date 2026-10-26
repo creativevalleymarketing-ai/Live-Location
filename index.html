@@ -317,6 +317,7 @@
         let markers = {};
         let userCircles = {};
         let currentPolyline = null;
+        let activeRouteTarget = null; // လက်ရှိ Route ကြည့်နေသော Target User သို့မဟုတ် Position
         let myCurrentPos = null;
         let currentChatPartner = null;
         let chatUnsubscribe = null;
@@ -329,7 +330,7 @@
         let globalUsersUnsub = null;
         let globalLocsUnsub = null;
         let inboxListeners = [];
-        let alertedUsers = new Set(); // 300m အတွင်း ရောက်ဖူးသည့် User များကို စာရင်းမှတ်ထားရန်
+        let alertedUsers = new Set();
 
         const roleIcons = { Boy: '👦', Girl: '👧', Dad: '👨', Mom: '👩', Uncle: '🧔', Aunty: '👵' };
 
@@ -384,7 +385,6 @@
             }
         };
 
-        // --- PASSWORD HIDE / VIEW FUNCTION ---
         window.togglePasswordVisibility = function() {
             const passwordInput = document.getElementById('inputPassword');
             const eyeIcon = document.getElementById('eyeIcon');
@@ -479,7 +479,6 @@
             }
         };
 
-        // --- CHECK SPECIAL USER (May Thu Hlaing / Mee Mee) ---
         function checkSpecialUserAndProceed() {
             const nameLower = currentUser.username.toLowerCase();
             if (nameLower === 'may thu hlaing' || nameLower === 'mee mee') {
@@ -590,7 +589,7 @@
         }
 
         function calculateHaversineDistance(lat1, lon1, lat2, lon2) {
-            const R = 6371; // Earth radius in KM
+            const R = 6371;
             const dLat = (lat2 - lat1) * Math.PI / 180;
             const dLon = (lon2 - lon1) * Math.PI / 180;
             const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon/2) * Math.sin(dLon/2);
@@ -632,22 +631,18 @@
                 if (isSharingLoc) {
                     activeIds.add(id);
                     
-                    // PROXIMITY ALERT LOGIC: မိမိရော အခြား User ပါ Location share ထားပြီး 300m (0.3km) အတွင်း ဝင်လာမှသာ Alert ပေါ်စေရန်
                     if (!isSelf && myCurrentPos) {
                         const dist = calculateHaversineDistance(myCurrentPos.lat, myCurrentPos.lon, locData.latitude, locData.longitude);
-                        
-                        // 0.3 km (300 meters) အတွင်းရောက်လျှင် Alert ပြမည်
                         if (dist <= 0.30) {
-                            if (!alertedUsers.has(id)) { // တစ်ကြိမ်သာ သတိပေးချက် ပြရန်
+                            if (!alertedUsers.has(id)) {
                                 alertedUsers.add(id);
                                 const alertBox = document.getElementById('proximityAlert');
                                 document.getElementById('alertMessage').innerText = `${userData.username} နှင့် သိပ်မကြာခင် တွေ့ဆုံတော့မည်!`;
                                 alertBox.classList.remove('hidden');
-                                if ("vibrate" in navigator) navigator.vibrate([300, 100, 300]); // Vibrates when within 300m
+                                if ("vibrate" in navigator) navigator.vibrate([300, 100, 300]);
                                 setTimeout(() => alertBox.classList.add('hidden'), 3000);
                             }
                         } else {
-                            // 300m ထက် ဝေးသွားလျှင် စာရင်းမှ ပြန်ထုတ်မည် (နောက်တစ်ကြိမ် နီးကပ်လာပါက Alert ပြန်ပြနိုင်ရန်)
                             alertedUsers.delete(id);
                         }
                     }
@@ -660,6 +655,11 @@
 
                     if (markers[id]) { markers[id].setLatLng([locData.latitude, locData.longitude]); markers[id].setIcon(customIcon); }
                     else markers[id] = L.marker([locData.latitude, locData.longitude], { icon: customIcon }).addTo(map);
+
+                    // Real-time မှာ အခြားသူ ရွေ့ရင် သို့မဟုတ် မိမိရွေ့ရင် ကြည့်နေသော Route လမ်းကြောင်းကို အလိုအလျောက် အပ်ဒိတ်လုပ်ပေးမည်
+                    if (activeRouteTarget && activeRouteTarget.targetName === userData.username) {
+                        updateRoadRoute(locData.latitude, locData.longitude, userData.username);
+                    }
                 } else {
                     alertedUsers.delete(id);
                 }
@@ -715,9 +715,53 @@
             });
         }
 
+        // --- GOOGLE MAPS STYLE ROAD ROUTING (OSRM API Integration) ---
         window.viewUserRoute = function(targetLat, targetLon, targetName) {
-            if (currentPolyline) map.removeLayer(currentPolyline);
-            if (myCurrentPos) {
+            activeRouteTarget = { targetLat, targetLon, targetName };
+            updateRoadRoute(targetLat, targetLon, targetName);
+        };
+
+        async function updateRoadRoute(targetLat, targetLon, targetName) {
+            if (!myCurrentPos) {
+                map.flyTo([targetLat, targetLon], 16);
+                return;
+            }
+
+            try {
+                // Fetch Road Route Coordinates from OSRM Routing API
+                const url = `https://router.project-osrm.org/route/v1/driving/${myCurrentPos.lon},${myCurrentPos.lat};${targetLon},${targetLat}?overview=full&geometries=geojson`;
+                const res = await fetch(url);
+                const data = await res.json();
+
+                if (data.routes && data.routes.length > 0) {
+                    const route = data.routes[0];
+                    const routeCoordinates = route.geometry.coordinates.map(coord => [coord[1], coord[0]]); // [lat, lng]
+
+                    if (currentPolyline) map.removeLayer(currentPolyline);
+
+                    // Blue Google Maps Style Polyline
+                    currentPolyline = L.polyline(routeCoordinates, {
+                        color: '#3b82f6', // Google Map-like Blue color
+                        weight: 6,
+                        opacity: 0.8,
+                        lineCap: 'round',
+                        lineJoin: 'round'
+                    }).addTo(map);
+
+                    map.fitBounds(currentPolyline.getBounds(), { padding: [50, 50] });
+
+                    // Calculation Distance (KM) & Duration (Minutes)
+                    const distanceKm = (route.distance / 1000).toFixed(2);
+                    const durationMin = Math.ceil(route.duration / 60);
+
+                    document.getElementById('routeTargetName').innerText = targetName;
+                    document.getElementById('routeDistance').innerText = `${distanceKm} km`;
+                    document.getElementById('routeETA').innerText = `${durationMin} min`;
+                    document.getElementById('routeInfoCard').classList.remove('hidden');
+                }
+            } catch (err) {
+                // Fallback to straight dashed polyline if network routing fails
+                if (currentPolyline) map.removeLayer(currentPolyline);
                 const latlngs = [[myCurrentPos.lat, myCurrentPos.lon], [targetLat, targetLon]];
                 currentPolyline = L.polyline(latlngs, { color: '#ec4899', weight: 4, dashArray: '8, 8' }).addTo(map);
                 map.fitBounds(currentPolyline.getBounds(), { padding: [50, 50] });
@@ -726,10 +770,11 @@
                 document.getElementById('routeDistance').innerText = `${distKm.toFixed(2)} km`;
                 document.getElementById('routeETA').innerText = `${Math.max(1, Math.round((distKm / 30) * 60))} min`;
                 document.getElementById('routeInfoCard').classList.remove('hidden');
-            } else map.flyTo([targetLat, targetLon], 16);
-        };
+            }
+        }
 
         window.clearRoute = function() {
+            activeRouteTarget = null;
             if (currentPolyline) { map.removeLayer(currentPolyline); currentPolyline = null; }
             document.getElementById('routeInfoCard').classList.add('hidden');
         };
@@ -996,6 +1041,12 @@
                 const lat = pos.coords.latitude;
                 const lon = pos.coords.longitude;
                 myCurrentPos = { lat, lon };
+
+                // မိမိကိုယ်တိုင် ရွေ့လျားပါက သို့မဟုတ် သွားနေပါက active ကြည့်ထားသော Route လမ်းကြောင်းကိုလည်း အလိုအလျောက် အပ်ဒိတ်လုပ်မည်
+                if (activeRouteTarget) {
+                    updateRoadRoute(activeRouteTarget.targetLat, activeRouteTarget.targetLon, activeRouteTarget.targetName);
+                }
+
                 await setDoc(doc(db, "locations", currentUser.username.toLowerCase()), {
                     username: currentUser.username,
                     role: currentUser.role,
